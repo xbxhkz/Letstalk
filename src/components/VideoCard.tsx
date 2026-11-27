@@ -256,7 +256,7 @@ export function VideoCard({ video, active, preload, onUpdate, onFollowChange, on
           @{video.author.username}
         </Link>
         <Caption text={video.caption} className="mt-1 line-clamp-3 text-sm leading-snug" />
-        <div className="mt-2.5 flex items-center gap-2 text-sm">
+        <SoundLink video={video} className="mt-2.5 flex items-center gap-2 text-sm">
           <Music2 className="h-3.5 w-3.5 shrink-0" />
           <div className="relative w-44 overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]">
             <div className={`flex w-max animate-marquee whitespace-nowrap ${playing ? "" : "[animation-play-state:paused]"}`}>
@@ -264,7 +264,7 @@ export function VideoCard({ video, active, preload, onUpdate, onFollowChange, on
               <span className="pr-10" aria-hidden>{video.audioName}</span>
             </div>
           </div>
-        </div>
+        </SoundLink>
       </div>
 
       {/* Right action rail */}
@@ -298,9 +298,9 @@ export function VideoCard({ video, active, preload, onUpdate, onFollowChange, on
           <Share2 className="h-7 w-7 drop-shadow-icon" strokeWidth={2.5} />
         </RailButton>
 
-        <div className={`mt-1 flex h-11 w-11 animate-spin-slow items-center justify-center rounded-full bg-[conic-gradient(#222,#444,#222,#444,#222)] ring-[6px] ring-neutral-900 ${playing ? "" : "[animation-play-state:paused]"}`} aria-label={`Sound: ${video.audioName}`}>
+        <SoundLink video={video} className={`mt-1 flex h-11 w-11 animate-spin-slow items-center justify-center rounded-full bg-[conic-gradient(#222,#444,#222,#444,#222)] ring-[6px] ring-neutral-900 ${playing ? "" : "[animation-play-state:paused]"}`} label={`Sound: ${video.audioName}`}>
           <Avatar user={video.author} size={22} />
-        </div>
+        </SoundLink>
       </div>
 
       {sharing && <ShareSheet video={video} onCopyLink={copyLink} onSent={countShare} onClose={() => setSharing(false)} />}
@@ -318,5 +318,15 @@ function RailButton({ label, onClick, aria, children }: { label: string; onClick
       {children}
       <span>{label}</span>
     </button>
+  );
+}
+
+/** The music line and spinning disc open the sound's page (like TikTok) when the video uses a reusable sound. */
+function SoundLink({ video, className, label, children }: { video: VideoDTO; className: string; label?: string; children: React.ReactNode }) {
+  if (!video.sound) return <div className={className} aria-label={label}>{children}</div>;
+  return (
+    <Link href={`/sound/${video.sound.id}`} className={`relative z-20 ${className}`} aria-label={label ?? `Sound: ${video.sound.title}`}>
+      {children}
+    </Link>
   );
 }

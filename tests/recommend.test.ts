@@ -42,11 +42,18 @@ test("finishing #coding videos pulls more #coding to the top; skipped content si
   await watch(key, dough, 0.08);
 
   const ranked = await rankForYou({ userId: null, viewerKey: key }, { limit: 50, seed: "fixed" });
-  const pos = (id: string) => ranked.findIndex((r) => r.id === id);
+  const cold = await rankForYou(anon("test-cold-baseline"), { limit: 50, seed: "fixed" });
+  const pos = (list: typeof ranked, id: string) => list.findIndex((r) => r.id === id);
   assert.equal(ranked[0].id, css, "the other #coding video by the same creator leads");
   assert.ok(ranked[0].reasons.some((r) => r.includes("#coding")), `reasons: ${ranked[0].reasons}`);
-  assert.ok(pos(sunset) > ranked.length / 2 && pos(dough) > ranked.length / 2, "skipped videos are in the bottom half");
-  assert.ok(pos(life) > 0, "the finished video is not repeated first");
+  // Relative, so the check holds however many other videos the database has: a skipped video never ranks
+  // higher for this viewer than for someone with no history (it may already be last), and is penalised.
+  for (const [name, id] of [["sunset", sunset], ["dough", dough]] as const) {
+    assert.ok(pos(ranked, id) >= pos(cold, id), `${name}: skipped video should not rise (was #${pos(cold, id)} for a new viewer, now #${pos(ranked, id)})`);
+    const s = ranked.find((r) => r.id === id)!;
+    assert.ok(s.parts.penalty < 1, `${name}: skip penalty applied`);
+  }
+  assert.ok(pos(ranked, life) > 0, "the finished video is not repeated first");
 });
 
 test("collaborative filtering: what similar viewers finished gets boosted", async () => {

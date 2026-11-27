@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Camera, Loader2, Upload, X } from "lucide-react";
-import { Studio, xhrPublisher } from "@/studio/Studio";
+import { Studio } from "@/studio/Studio";
 import { useToast } from "@/components/Providers";
 import { api } from "@/lib/client";
 import { CreateForm } from "./CreateForm";
@@ -17,7 +17,9 @@ type Where = "checking" | "studio" | "app" | "insecure";
  * - Android app on a plain-http server: open the studio bundled in the app (secure https://localhost);
  * - plain-http browser: the camera API doesn't exist, so offer file upload.
  */
-export function CreateHub({ username, startWithUpload }: { username: string; startWithUpload: boolean }) {
+const WEB_API = { base: "" };
+
+export function CreateHub({ username, startWithUpload, soundId }: { username: string; startWithUpload: boolean; soundId: string | null }) {
   const router = useRouter();
   const { toast } = useToast();
   const [where, setWhere] = useState<Where>("checking");
@@ -35,7 +37,7 @@ export function CreateHub({ username, startWithUpload }: { username: string; sta
     setOpening(true);
     try {
       const { token } = await api<{ token: string }>("/api/upload-token", { method: "POST" });
-      const q = new URLSearchParams({ server: window.location.origin, token, user: username });
+      const q = new URLSearchParams({ server: window.location.origin, token, user: username, ...(soundId ? { sound: soundId } : {}) });
       window.location.href = `https://localhost/studio.html?${q}`;
     } catch (e) {
       toast((e as Error).message, "error");
@@ -61,7 +63,8 @@ export function CreateHub({ username, startWithUpload }: { username: string; sta
         <Studio
           username={username}
           mediapipeBase="/mediapipe"
-          publish={xhrPublisher("/api/videos")}
+          api={WEB_API}
+          initialSoundId={soundId}
           onClose={() => (history.length > 1 ? router.back() : router.push("/"))}
           onPublished={() => {
             toast("Your video is live!");

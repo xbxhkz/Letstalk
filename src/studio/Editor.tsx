@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, Type, Sticker, Sparkles, Volume2, Trash2, AlignLeft, AlignCenter, AlignRight, Loader2 } from "lucide-react";
+import { ChevronLeft, Type, Sticker, Sparkles, Volume2, Trash2, AlignLeft, AlignCenter, AlignRight, Loader2, Music2 } from "lucide-react";
 import { Compositor, OUT_H, OUT_W, type Look } from "./compositor";
 import { exportVideo, type Segment } from "./recorder";
 import { STICKERS, TEXT_COLORS, TEXT_STYLES, hitTest, newId, type Overlay, type TextOverlay } from "./overlays";
 import { EffectStrip, FilterStrip, RailButton, Sheet, Slider } from "./ui";
+import { mediaUrl, type SoundPick, type StudioApi } from "./api";
 
 type Panel = "stickers" | "filters" | "volume" | null;
 
@@ -13,6 +14,10 @@ export function Editor({
   original,
   onBack,
   onNext,
+  api,
+  sound,
+  initialOriginalVolume = 1,
+  onPickSound,
 }: {
   segments: Segment[];
   look: Look;
@@ -20,12 +25,19 @@ export function Editor({
   original?: File;
   onBack: () => void;
   onNext: (file: File) => void;
+  api: StudioApi;
+  sound: SoundPick | null;
+  /** 0 when the clips were recorded with the added sound playing (the mic mostly caught speaker bleed). */
+  initialOriginalVolume?: number;
+  onPickSound: () => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const musicRef = useRef<HTMLAudioElement | null>(null);
   const [look, setLook] = useState(initialLook);
   const [overlays, setOverlays] = useState<Overlay[]>([]);
-  const [volume, setVolume] = useState(1);
+  const [volume, setVolume] = useState(initialOriginalVolume);
+  const [musicVolume, setMusicVolume] = useState(1);
   const [panel, setPanel] = useState<Panel>(null);
   const [filterTab, setFilterTab] = useState<"filters" | "effects" | "beauty">("filters");
   const [editing, setEditing] = useState<TextOverlay | null>(null);
@@ -49,12 +61,50 @@ export function Editor({
       v.muted = true; // autoplay with sound blocked: preview silently
       v.play().catch(() => {});
     });
+    // Keep the added sound in step: jump to where this clip sits in the final video.
+    const m = musicRef.current;
+    if (m && sound) {
+      const i = seg % segments.length;
+      const before = segments.slice(0, i).reduce((t, x) => t + x.durationMs / x.speed, 0);
+      m.currentTime = (sound.startMs + before) / 1000;
+      m.play().catch(() => {});
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seg, segments]);
+  }, [seg, segments, sound]);
+
+  // The added sound's preview player.
+  useEffect(() => {
+    if (!sound) return;
+    const m = new Audio();
+    m.preload = "auto";
+    m.volume = musicVolume;
+    musicRef.current = m;
+    mediaUrl(api, sound.sound.url)
+      .then((src) => {
+        if (!src || musicRef.current !== m) return;
+        m.src = src;
+        const v = videoRef.current;
+        if (v && !v.paused) {
+          const i = seg % segments.length;
+          const before = segments.slice(0, i).reduce((t, x) => t + x.durationMs / x.speed, 0);
+          m.currentTime = (sound.startMs + before + (v.currentTime * 1000) / segments[i].speed) / 1000;
+          m.play().catch(() => {});
+        }
+      })
+      .catch(() => {});
+    return () => {
+      m.pause();
+      musicRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api, sound]);
 
   useEffect(() => {
     if (videoRef.current) videoRef.current.volume = volume;
   }, [volume]);
+  useEffect(() => {
+    if (musicRef.current) musicRef.current.volume = musicVolume;
+  }, [musicVolume]);
 
   useEffect(() => {
     const comp = new Compositor(canvasRef.current!);
@@ -163,15 +213,17 @@ export function Editor({
   };
 
   const unchanged = () =>
-    !!original && segments.length === 1 && segments[0].speed === 1 && overlays.length === 0 && volume === 1 && look.filter === "none" && look.effect === "none" && look.beauty === 0 && /^video\/(mp4|webm)$/.test(original.type);
+    !!original && !sound && segments.length === 1 && segments[0].speed === 1 && overlays.length === 0 && volume === 1 && look.filter === "none" && look.effect === "none" && look.beauty === 0 && /^video\/(mp4|webm)$/.test(original.type);
 
   const next = async () => {
     if (unchanged()) return onNext(original!);
     setError(null);
     setProgress(0);
     videoRef.current?.pause();
+    musicRef.current?.pause();
     try {
-      const file = await exportVideo({ segments, look, overlays, volume }, setProgress);
+      const music = sound ? { url: (await mediaUrl(api, sound.sound.url))!, startMs: sound.startMs, volume: musicVolume } : null;
+      const file = await exportVideo({ segments, look, overlays, volume, music }, setProgress);
       onNext(file);
     } catch (e) {
       setError((e as Error).message || "Couldn't process the video.");
@@ -203,10 +255,14 @@ export function Editor({
       {!editing && !dragging && (
         <>
           <button type="button" onClick={onBack} aria-label="Back" className="absolute left-3 top-[max(16px,env(safe-area-inset-top))] z-20 p-1.5 drop-shadow"><ChevronLeft className="h-8 w-8" /></button>
+          <button type="button" onClick={onPickSound} className="absolute left-1/2 top-[max(20px,env(safe-area-inset-top))] z-20 flex max-w-[55%] -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-sm font-semibold backdrop-blur">
+            <Music2 className="h-4 w-4 shrink-0" /><span className="truncate">{sound ? sound.sound.title : "Add sound"}</span>
+          </button>
           <div className="absolute right-1 top-16 z-20 flex flex-col items-center gap-2">
             <RailButton icon={<Type className="h-7 w-7" />} label="Text" onClick={addText} />
             <RailButton icon={<Sticker className="h-7 w-7" />} label="Stickers" active={panel === "stickers"} onClick={() => setPanel(panel === "stickers" ? null : "stickers")} />
             <RailButton icon={<Sparkles className="h-7 w-7" />} label="Filters" active={panel === "filters"} onClick={() => setPanel(panel === "filters" ? null : "filters")} />
+            <RailButton icon={<Music2 className="h-7 w-7" />} label="Sound" active={!!sound} onClick={onPickSound} />
             <RailButton icon={<Volume2 className="h-7 w-7" />} label="Volume" active={panel === "volume"} onClick={() => setPanel(panel === "volume" ? null : "volume")} />
           </div>
           {!panel && (
@@ -241,7 +297,10 @@ export function Editor({
       )}
       {panel === "volume" && (
         <Sheet title="Volume" onClose={() => setPanel(null)}>
-          <div className="pb-3"><Slider label="Original" value={volume} max={1} onChange={setVolume} /></div>
+          <div className="space-y-4 pb-3">
+            <Slider label="Original" value={volume} max={1} onChange={setVolume} />
+            {sound && <Slider label="Added sound" value={musicVolume} max={1} onChange={setMusicVolume} />}
+          </div>
         </Sheet>
       )}
 

@@ -65,7 +65,7 @@ Tap **+** to open a TikTok/Snapchat-style studio (`src/studio/`):
 
 - **Camera:** front/back flip, flash (when the camera has a torch), tap-to-toggle *or* hold-to-record, multiple clips with a segmented progress bar and "delete last clip", 15s / 60s / 3m lengths, 3s/10s countdown, speed 0.3×–3× (pitch preserved), and gallery import.
 - **Filters** (GPU/WebGL): Vivid, Warm, Cool, Rosé, Cinema, Vintage, Fade, Mono, Noir, Sunset, Lush with an intensity slider; **Beauty** smoothing; **screen effects**: VHS, Glitch, RGB split, Mirror, Split ×4, Pixel, Comic, Pulse. Filters and effects stay editable after recording.
-- **Face lenses** (MediaPipe face tracking): Shades, Puppy (tongue when you open your mouth), Kitty, Royal crown, Heart eyes, Blush, Clown, Sparkle. They're recorded into the clip.
+- **Face lenses** (MediaPipe face tracking; the CPU delegate on phones, since Android WebViews' GPU path returns no faces): Shades, Puppy (tongue when you open your mouth), Kitty, Royal crown, Heart eyes, Blush, Clown, Sparkle. They're recorded into the clip.
 - **Editor:** text in Classic / Typewriter / Handwriting / Neon / Serif, 10 colours, three background styles and alignment; emoji stickers; drag to move, pinch (or mouse wheel) to resize and rotate, drag onto the bin to delete, tap text to edit; original-sound volume.
 - **Text mode:** TikTok-style text posts on animated gradient backgrounds, published as a 6-second video.
 - **Post:** caption, hashtags, cover-frame picker and sound name, with upload progress.
@@ -78,6 +78,15 @@ How it fits together: the camera records the raw picture plus any lens; the fina
 - Plain-http browsers: `/create` explains this and offers file upload.
 
 The face tracker (14 MB runtime + 3.6 MB model) is served by the Letstalk server from `public/mediapipe/`, which `scripts/prepare-mediapipe.mjs` fills before every `dev`/`build`, and is loaded only when someone picks a lens.
+## Sounds
+
+TikTok-style sounds: **Add sound** in the camera, editor and Text mode opens a picker with **For you** (most used), **Library** and **My sounds**, plus search, tap-to-preview, **Upload a sound** (MP3/M4A/AAC/OGG/WAV/WebM, up to 15 MB and 10 minutes) and a trim step to choose where in the track the video starts.
+
+- **While recording**, the sound plays from the right point, at 1/speed for slow and fast clips, so it lines up in the final video. The final mix (original sound + added sound, each with its own volume slider) is made at export, re-synced at every clip. Recording with a sound starts with the original (mic) volume at 0, as TikTok does.
+- **Every sound has a page** (`/sound/[id]`) with its videos and **Use this sound**. The music line and spinning disc on a video open it, and Discover shows **Trending sounds**.
+- **Built-in library:** 8 original 30-second tracks (Lo-fi, Dance, Hip-hop, Pop, Synthwave, Ambient, Funk, Cinematic) synthesised from code by `scripts/generate-sounds.mjs`, so they're free of third-party rights. Files are in `public/sounds/library/`, and the list in `src/lib/sound-library.json` is synced into the database automatically (no reseed needed). Re-run the script (needs ffmpeg) to change or add tracks.
+- **API:** `GET /api/sounds?tab=popular|library|mine&q=`, `GET /api/sounds/:id` (sound + videos), `POST /api/sounds` (upload; cookie or app upload token). Videos store `soundId`.
+- **In the Android app** the studio fetches sound files and covers and plays them from memory (blob URLs). The WebView would otherwise auto-upgrade `http://` media to `https://` and fail on a LAN server.
 ## Sign-in
 
 People can sign in four ways, and any of them creates an account on first use:

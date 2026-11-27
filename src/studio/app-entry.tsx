@@ -4,12 +4,13 @@
  * Built by scripts/build-studio.mjs.
  */
 import { createRoot } from "react-dom/client";
-import { Studio, xhrPublisher } from "./Studio";
+import { Studio } from "./Studio";
 
 const params = new URLSearchParams(location.search);
 const rawServer = params.get("server") ?? "";
 const token = params.get("token") ?? "";
 const user = params.get("user") ?? "you";
+const soundId = /^[\w-]{1,40}$/.test(params.get("sound") ?? "") ? params.get("sound") : null;
 // Don't leave the token in the address/history.
 history.replaceState(null, "", location.pathname);
 
@@ -38,7 +39,8 @@ if (!server || !token) {
     <Studio
       username={user}
       mediapipeBase={`${server}/mediapipe`}
-      publish={xhrPublisher(`${server}/api/videos`, token)}
+      api={{ base: server, token }}
+      initialSoundId={soundId}
       onClose={() => location.replace(`${server}/`)}
       onPublished={() => location.replace(`${server}/profile/${encodeURIComponent(user)}`)}
     />,

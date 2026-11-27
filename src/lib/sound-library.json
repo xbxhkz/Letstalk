@@ -1,0 +1,74 @@
+[
+  {
+    "slug": "golden-hour",
+    "title": "Golden Hour",
+    "artist": "Letstalk Sounds",
+    "genre": "Lo-fi",
+    "url": "/sounds/library/golden-hour.m4a",
+    "coverUrl": "/sounds/library/golden-hour.svg",
+    "durationMs": 30000
+  },
+  {
+    "slug": "neon-rush",
+    "title": "Neon Rush",
+    "artist": "Letstalk Sounds",
+    "genre": "Dance",
+    "url": "/sounds/library/neon-rush.m4a",
+    "coverUrl": "/sounds/library/neon-rush.svg",
+    "durationMs": 30000
+  },
+  {
+    "slug": "trap-royale",
+    "title": "Trap Royale",
+    "artist": "Letstalk Sounds",
+    "genre": "Hip-hop",
+    "url": "/sounds/library/trap-royale.m4a",
+    "coverUrl": "/sounds/library/trap-royale.svg",
+    "durationMs": 30000
+  },
+  {
+    "slug": "summer-sprint",
+    "title": "Summer Sprint",
+    "artist": "Letstalk Sounds",
+    "genre": "Pop",
+    "url": "/sounds/library/summer-sprint.m4a",
+    "coverUrl": "/sounds/library/summer-sprint.svg",
+    "durationMs": 30000
+  },
+  {
+    "slug": "midnight-drive",
+    "title": "Midnight Drive",
+    "artist": "Letstalk Sounds",
+    "genre": "Synthwave",
+    "url": "/sounds/library/midnight-drive.m4a",
+    "coverUrl": "/sounds/library/midnight-drive.svg",
+    "durationMs": 30000
+  },
+  {
+    "slug": "cozy-rain",
+    "title": "Cozy Rain",
+    "artist": "Letstalk Sounds",
+    "genre": "Ambient",
+    "url": "/sounds/library/cozy-rain.m4a",
+    "coverUrl": "/sounds/library/cozy-rain.svg",
+    "durationMs": 30000
+  },
+  {
+    "slug": "bounce-back",
+    "title": "Bounce Back",
+    "artist": "Letstalk Sounds",
+    "genre": "Funk",
+    "url": "/sounds/library/bounce-back.m4a",
+    "coverUrl": "/sounds/library/bounce-back.svg",
+    "durationMs": 30000
+  },
+  {
+    "slug": "epic-moment",
+    "title": "Epic Moment",
+    "artist": "Letstalk Sounds",
+    "genre": "Cinematic",
+    "url": "/sounds/library/epic-moment.m4a",
+    "coverUrl": "/sounds/library/epic-moment.svg",
+    "durationMs": 30000
+  }
+]

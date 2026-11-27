@@ -6,6 +6,7 @@ import { DETECT_INTERVAL_MS, LENSES, drawLens, loadLandmarker, type LensId } fro
 import { pickMime, probeDuration, startClip, type Segment } from "./recorder";
 import { newId } from "./overlays";
 import { EffectStrip, FilterStrip, RailButton, Sheet, Slider } from "./ui";
+import { mediaUrl, type SoundPick, type StudioApi } from "./api";
 
 const SPEEDS = [0.3, 0.5, 1, 2, 3];
 const LENGTHS = [
@@ -26,7 +27,15 @@ export function Camera({
   onNext,
   onImport,
   modeSwitch,
+  api,
+  sound,
+  onPickSound,
+  onClearSound,
 }: {
+  api: StudioApi;
+  sound: SoundPick | null;
+  onPickSound: () => void;
+  onClearSound: () => void;
   mediapipeBase: string;
   look: Look;
   onLook: (l: Look) => void;
@@ -50,6 +59,21 @@ export function Camera({
   const lensRef = useRef<LensId>("none");
   const pressRef = useRef(0);
   const fileRef = useRef<HTMLInputElement>(null);
+  const musicRef = useRef<HTMLAudioElement | null>(null);
+
+  // The added sound's player (heard while recording; the final mix is made at export).
+  useEffect(() => {
+    if (!sound) {
+      musicRef.current?.pause();
+      musicRef.current = null;
+      return;
+    }
+    const a = new Audio();
+    a.preload = "auto";
+    musicRef.current = a;
+    mediaUrl(api, sound.sound.url).then((src) => src && (a.src = src)).catch(() => {});
+    return () => a.pause();
+  }, [api, sound]);
 
   const [facing, setFacing] = useState<"user" | "environment">("user");
   const [error, setError] = useState<string | null>(null);
@@ -196,11 +220,20 @@ export function Camera({
     clipRef.current = startClip(recStreamRef.current, mime.current);
     setLiveMs(0);
     setRecording(true);
+    // Play the added sound from where this clip lands in the final video. At speed s the clip is
+    // later played s× faster, so the music plays at 1/s now to line up afterwards.
+    const m = musicRef.current;
+    if (m && sound) {
+      m.currentTime = (sound.startMs + usedMs) / 1000;
+      m.playbackRate = 1 / speed;
+      m.play().catch(() => {});
+    }
   };
 
   const stopRecording = async () => {
     const clip = clipRef.current;
     clipRef.current = null;
+    musicRef.current?.pause();
     setRecording(false);
     if (!clip) return;
     const { blob, durationMs } = await clip.stop();
@@ -296,7 +329,18 @@ export function Camera({
       {/* Top bar */}
       <div className="absolute inset-x-0 top-[max(16px,env(safe-area-inset-top))] z-20 flex items-center justify-center px-3 pt-2">
         <button type="button" onClick={onClose} aria-label="Close" className="absolute left-3 p-1.5 drop-shadow"><X className="h-7 w-7" /></button>
-        <span className="flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-sm font-semibold backdrop-blur"><Music2 className="h-4 w-4" />Original sound</span>
+        {sound ? (
+          <span className="flex max-w-[60%] items-center gap-1.5 rounded-full bg-black/40 py-1.5 pl-3 pr-1.5 text-sm font-semibold backdrop-blur">
+            <button type="button" onClick={onPickSound} disabled={segments.length > 0 || recording} className="flex min-w-0 items-center gap-1.5">
+              <Music2 className="h-4 w-4 shrink-0" /><span className="truncate">{sound.sound.title}</span>
+            </button>
+            {segments.length === 0 && !recording && <button type="button" onClick={onClearSound} aria-label="Remove sound" className="rounded-full p-0.5"><X className="h-4 w-4" /></button>}
+          </span>
+        ) : (
+          <button type="button" onClick={onPickSound} disabled={recording} className="flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-sm font-semibold backdrop-blur">
+            <Music2 className="h-4 w-4" />Add sound
+          </button>
+        )}
       </div>
 
       {/* Right rail */}
@@ -340,6 +384,12 @@ export function Camera({
               aria-label={recording ? "Stop recording" : "Record"}
               onPointerDown={onRecordDown}
               onPointerUp={onRecordUp}
+              // Keyboard / screen-reader activation has no pointer events (detail === 0): toggle recording.
+              onClick={(e) => {
+                if (e.detail !== 0 || countdown) return;
+                if (recording) stopRecording();
+                else beginRecording();
+              }}
               onContextMenu={(e) => e.preventDefault()}
               disabled={!ready || (full && !recording)}
               className="relative flex h-20 w-20 touch-none items-center justify-center rounded-full border-[5px] border-white/80 disabled:opacity-50"
