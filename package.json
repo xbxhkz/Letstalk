@@ -14,7 +14,8 @@
     "test": "node scripts/test.mjs",
     "start:lan": "node scripts/start-lan.mjs",
     "android:apk": "node scripts/android-build.mjs",
-    "android:open": "npx cap open android"
+    "android:open": "npx cap open android",
+    "start:lan:test": "node scripts/start-lan.mjs --show-codes"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

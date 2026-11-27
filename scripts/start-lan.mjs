@@ -16,9 +16,20 @@ const addrs = Object.values(networkInterfaces())
   .map((a) => `http://${a.address}:${port}`);
 console.log(`\nLetstalk for phones on this network:\n${addrs.map((a) => `  ${a}`).join("\n")}\n`);
 
+// --show-codes (npm run start:lan:test): show email/SMS sign-in codes on screen for any method with
+// no provider configured, so phone and email sign-in can be tried before Twilio/SMTP are set up.
+const showCodes = process.argv.includes("--show-codes");
+if (showCodes) {
+  console.log(
+    "!! TEST MODE: sign-in codes for unconfigured email/SMS are shown on screen.\n" +
+      "!! Anyone who can reach this server can sign in as any email or phone number.\n" +
+      "!! Use only on your own Wi-Fi, never on the internet.\n",
+  );
+}
+
 const child = spawn("npx", ["next", "start", "-H", "0.0.0.0", "-p", port], {
   stdio: "inherit",
   shell: process.platform === "win32",
-  env: { ...process.env, INSECURE_COOKIES: "1" },
+  env: { ...process.env, INSECURE_COOKIES: "1", ...(showCodes ? { DEV_SHOW_CODES: "1" } : {}) },
 });
 child.on("exit", (code) => process.exit(code ?? 0));
