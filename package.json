@@ -16,7 +16,8 @@
     "android:apk": "node scripts/android-build.mjs",
     "android:open": "npx cap open android",
     "predev": "node scripts/prepare-mediapipe.mjs",
-    "prebuild": "node scripts/prepare-mediapipe.mjs"
+    "prebuild": "node scripts/prepare-mediapipe.mjs",
+    "start:lan:test": "node scripts/start-lan.mjs --show-codes"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

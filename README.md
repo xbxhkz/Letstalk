@@ -89,7 +89,7 @@ People can sign in four ways, and any of them creates an account on first use:
 | **Email** | 6-digit code by email | SMTP (`SMTP_*`) |
 | **Username + password** | as before (demo accounts use `password123`) | nothing |
 
-See `.env.example` for every setting. **Without a provider, development still works:** the code is printed in the server console and shown on the sign-in screen. In production (`NODE_ENV=production`) an unconfigured method refuses to send.
+See `.env.example` for every setting. **Without a provider, development still works:** under `npm run dev` the code is printed in the server console and shown on the sign-in screen. The production server (`npm start`, `npm run start:lan`) refuses to send instead, saying the method "isn't set up on this server yet". To try phone and email codes from a phone before setting up Twilio or SMTP, use `npm run start:lan:test`, which shows codes on screen. Only use it on your own Wi-Fi, since anyone who can reach it can sign in as any email or number.
 
 New Google, phone and email accounts pick a username on `/onboarding` before using the app. A Google account whose **verified** email matches an existing account is linked to it rather than duplicated.
 
