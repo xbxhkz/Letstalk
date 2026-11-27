@@ -18,7 +18,7 @@ MVP complete. All required features are built. `npm run build` passes with 0 err
 - **Server for phones:** `npm run build && npm run start:lan` (listens on 0.0.0.0 with `INSECURE_COOKIES=1`).
 - **Verified on the `Oneplus_13` emulator:** the start screen pre-filled the LAN address, Connect loaded the For You feed with autoplay, demo login held its session over http, the inbox showed its badges and messages, and relaunching reconnected and stayed logged in.
 - **Gotchas:** `scripts/android-build.mjs` calls `.\gradlew.bat` explicitly (this machine sets NoDefaultCurrentDirectoryInExePath). Other tools on this PC run an older adb (v32), which keeps restarting the SDK's adb (v41), so retry adb commands. `npm test` uses `cp`/`rm`, so run it from Git Bash on Windows.
-## Camera studio (2026-11-27, branch feature/camera-studio)
+## Camera studio (2026-11-27, merged in PR #5)
 - **Built:** a TikTok/Snapchat-style studio in `src/studio/` (framework-free React): Camera.tsx (recording, speed, timer, flash, lenses), compositor.ts (WebGL filters, beauty, effects and overlays), lenses.ts (MediaPipe face lenses), Editor.tsx (text, stickers, gestures, volume, export), TextPost.tsx, PostDetails.tsx, recorder.ts (MediaRecorder clips, real-time export, cover frames).
 - **Hosts:** `/create` → CreateHub.tsx picks the in-page studio (secure context), the APK's bundled studio (`https://localhost/studio.html`, built by `scripts/build-studio.mjs` during `npm run android:apk`), or upload-only on plain http. The app uploads with an upload token (`/api/upload-token`, `getUploadTokenUserId`, `src/lib/cors.ts`).
 - **Assets:** `public/mediapipe/` (gitignored) is created by `scripts/prepare-mediapipe.mjs` (predev/prebuild). It downloads the face model once; if that fails, only lenses are disabled.
@@ -42,6 +42,8 @@ MVP complete. All required features are built. `npm run build` passes with 0 err
 - PR #1 (the MVP) was merged into `main` on 2026-11-27.
 - PR #2 (inbox, For You recommendations and the Android app) was merged into `main` on 2026-11-27 (https://github.com/xbxhkz/Letstalk/pull/2).
 - PR #3 (sign-in with Google, phone and email) was merged into `main` on 2026-11-27 (https://github.com/xbxhkz/Letstalk/pull/3).
+- PR #4 (`npm run start:lan:test`: shows sign-in codes on screen for LAN testing) was merged into `main` on 2026-11-27 (https://github.com/xbxhkz/Letstalk/pull/4).
+- PR #5 (camera studio: recording, filters, face lenses, text posts) was merged into `main` on 2026-11-27 (https://github.com/xbxhkz/Letstalk/pull/5).
 - Everything is on `main`. Local clone: `C:\Users\Admin\Letstalk`.
 
 ## Run it
