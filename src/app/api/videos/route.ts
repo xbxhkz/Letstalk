@@ -9,6 +9,7 @@ import { rankForYou } from "@/lib/recommend";
 import { extractHashtags, findVideos, videoDTOById, videosByIdsInOrder } from "@/lib/videos";
 import { badRequest, json, unauthorized } from "@/lib/api";
 import { notify } from "@/lib/inbox";
+import { soundLabel } from "@/lib/sounds";
 
 export const dynamic = "force-dynamic";
 
@@ -111,9 +112,13 @@ async function createVideo(req: Request, userId: string) {
   }
 
   const author = await prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { username: true } });
-  const audioName = String(form.get("audioName") ?? "").trim().slice(0, 80) || `original sound — ${author.username}`;
+  // A sound from the library (or uploaded by someone) links the video to that sound's page.
+  const soundId = String(form.get("soundId") ?? "").trim();
+  const sound = soundId ? await prisma.sound.findUnique({ where: { id: soundId }, select: { id: true, title: true, artist: true } }) : null;
+  const audioName =
+    String(form.get("audioName") ?? "").trim().slice(0, 80) || (sound ? soundLabel(sound) : `original sound — ${author.username}`);
   const video = await prisma.video.create({
-    data: { url: `/api/media/${videoName}`, thumbnailUrl, caption: fullCaption, hashtags: tags.join(" "), audioName, authorId: userId },
+    data: { url: `/api/media/${videoName}`, thumbnailUrl, caption: fullCaption, hashtags: tags.join(" "), audioName, authorId: userId, soundId: sound?.id ?? null },
   });
   await notify(userId, "Your video is live 🎉", `"${fullCaption.slice(0, 60)}${fullCaption.length > 60 ? "…" : ""}" is now in the For You feed.`, `/watch?v=${video.id}`);
   return json({ video: await videoDTOById(video.id, userId) }, 201);

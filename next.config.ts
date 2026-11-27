@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
           { key: "Cache-Control", value: "public, max-age=604800" },
         ],
       },
+      {
+        // Built-in sound library: the app mixes these into videos with WebAudio (needs CORS).
+        source: "/sounds/:path*",
+        headers: [{ key: "Access-Control-Allow-Origin", value: "https://localhost" }],
+      },
     ];
   },
   experimental: { serverActions: { bodySizeLimit: "100mb" } },

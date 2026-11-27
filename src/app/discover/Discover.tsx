@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Search, X, Hash, Loader2, TrendingUp } from "lucide-react";
+import { Search, X, Hash, Loader2, TrendingUp, Music2 } from "lucide-react";
 import type { UserLite, VideoDTO } from "@/lib/types";
+import type { SoundDTO } from "@/lib/sounds";
 import { api } from "@/lib/client";
 import { formatCount } from "@/lib/format";
 import { Avatar } from "@/components/Avatar";
@@ -12,7 +13,7 @@ import { VideoGrid } from "@/components/VideoGrid";
 type Trend = { tag: string; videos: number; views: number };
 type UserHit = UserLite & { bio: string; followers: number };
 
-export function Discover({ initialQuery, trending }: { initialQuery: string; trending: Trend[] }) {
+export function Discover({ initialQuery, trending, sounds }: { initialQuery: string; trending: Trend[]; sounds: SoundDTO[] }) {
   const [q, setQ] = useState(initialQuery);
   const [debounced, setDebounced] = useState(initialQuery);
   const [result, setResult] = useState<{ users: UserHit[]; videos: VideoDTO[] } | null>(null);
@@ -69,6 +70,21 @@ export function Discover({ initialQuery, trending }: { initialQuery: string; tre
                   <span className="font-semibold">{t.tag}</span>
                   <span className="text-xs text-white/50">{formatCount(t.views)}</span>
                 </button>
+              ))}
+            </div>
+          </section>
+        )}
+        {!debounced && sounds.length > 0 && (
+          <section className="pb-3 pt-1">
+            <h2 className="mb-2 flex items-center gap-1.5 px-3 text-sm font-bold"><Music2 className="h-4 w-4 text-brand-cyan" /> Trending sounds</h2>
+            <div className="no-scrollbar flex gap-3 overflow-x-auto px-3">
+              {sounds.map((s) => (
+                <Link key={s.id} href={`/sound/${s.id}`} className="w-24 shrink-0">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  {s.coverUrl ? <img src={s.coverUrl} alt="" className="h-24 w-24 rounded-lg object-cover" /> : <span className="flex h-24 w-24 items-center justify-center rounded-lg bg-gradient-to-br from-brand to-brand-cyan"><Music2 className="h-8 w-8" /></span>}
+                  <p className="mt-1 truncate text-xs font-semibold">{s.title}</p>
+                  <p className="truncate text-[11px] text-white/50">{formatCount(s.uses)} video{s.uses === 1 ? "" : "s"}</p>
+                </Link>
               ))}
             </div>
           </section>

@@ -5,7 +5,22 @@ import { coverJpeg, grabFrames } from "./recorder";
 export type PublishInput = { video: File; thumbnail: Blob | null; caption: string; hashtags: string; audioName: string };
 export type Publisher = (input: PublishInput, onProgress: (p: number) => void) => Promise<void>;
 
-export function PostDetails({ file, username, publish, onBack, onPublished }: { file: File; username: string; publish: Publisher; onBack: () => void; onPublished: () => void }) {
+export function PostDetails({
+  file,
+  username,
+  soundLabel,
+  publish,
+  onBack,
+  onPublished,
+}: {
+  file: File;
+  username: string;
+  /** "Title — Artist" of the added sound; the video is linked to it, so the name isn't editable. */
+  soundLabel: string | null;
+  publish: Publisher;
+  onBack: () => void;
+  onPublished: () => void;
+}) {
   const url = useMemo(() => URL.createObjectURL(file), [file]);
   useEffect(() => () => URL.revokeObjectURL(url), [url]);
   const [caption, setCaption] = useState("");
@@ -84,7 +99,11 @@ export function PostDetails({ file, username, publish, onBack, onPublished }: { 
           <span className="mb-1 block text-sm font-semibold">Sound</span>
           <span className="flex items-center gap-2 rounded-lg bg-neutral-900 px-3">
             <Music2 className="h-4 w-4 text-white/40" />
-            <input value={audio} onChange={(e) => setAudio(e.target.value)} maxLength={80} placeholder={`original sound — ${username}`} className="h-11 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/40" />
+            {soundLabel ? (
+              <span className="flex h-11 min-w-0 flex-1 items-center truncate text-sm">{soundLabel}</span>
+            ) : (
+              <input value={audio} onChange={(e) => setAudio(e.target.value)} maxLength={80} placeholder={`original sound — ${username}`} className="h-11 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-white/40" />
+            )}
           </span>
         </label>
         {error && <p role="alert" className="rounded-md bg-brand/15 px-3 py-2 text-sm text-brand">{error}</p>}

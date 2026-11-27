@@ -4,16 +4,34 @@ import { Camera } from "./Camera";
 import { Editor } from "./Editor";
 import { TextPost } from "./TextPost";
 import { PostDetails, type Publisher } from "./PostDetails";
+import { SoundPicker } from "./SoundPicker";
 import { probeDuration, type Segment } from "./recorder";
 import { newId } from "./overlays";
+import { studioGet, studioUpload, type Sound, type SoundPick, type StudioApi } from "./api";
 
 export type { Publisher, PublishInput } from "./PostDetails";
+export type { StudioApi } from "./api";
 
 /**
  * The camera studio: Camera or Text -> Editor -> Post. Framework-free React so it runs both in the
  * Next.js app (secure contexts) and bundled into the Android app (android-shell/studio.html).
  */
-export function Studio({ username, mediapipeBase, publish, onClose, onPublished }: { username: string; mediapipeBase: string; publish: Publisher; onClose: () => void; onPublished: () => void }) {
+export function Studio({
+  username,
+  mediapipeBase,
+  api,
+  initialSoundId,
+  onClose,
+  onPublished,
+}: {
+  username: string;
+  mediapipeBase: string;
+  api: StudioApi;
+  /** Opened from a sound's "Use this sound" button. */
+  initialSoundId?: string | null;
+  onClose: () => void;
+  onPublished: () => void;
+}) {
   const [mode, setMode] = useState<"camera" | "text">("camera");
   const [stage, setStage] = useState<"capture" | "edit" | "post">("capture");
   const [segments, setSegments] = useState<Segment[]>([]);
@@ -21,8 +39,19 @@ export function Studio({ username, mediapipeBase, publish, onClose, onPublished 
   const [original, setOriginal] = useState<File | undefined>();
   const [result, setResult] = useState<File | null>(null);
   const [fromText, setFromText] = useState(false);
+  const [sound, setSound] = useState<SoundPick | null>(null);
+  const [picking, setPicking] = useState(false);
+  // The sound was playing while recording, so the mic mostly picked up speaker bleed: start with it muted.
+  const [recordedWithSound, setRecordedWithSound] = useState(false);
 
   useEffect(() => () => segments.forEach((s) => URL.revokeObjectURL(s.url)), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!initialSoundId) return;
+    studioGet<{ sound: Sound }>(api, `/api/sounds/${encodeURIComponent(initialSoundId)}`)
+      .then((r) => setSound({ sound: r.sound, startMs: 0 }))
+      .catch(() => {});
+  }, [api, initialSoundId]);
 
   const importFile = async (f: File) => {
     const url = URL.createObjectURL(f);
@@ -30,7 +59,19 @@ export function Studio({ username, mediapipeBase, publish, onClose, onPublished 
     segments.forEach((s) => URL.revokeObjectURL(s.url));
     setSegments([{ id: newId(), blob: f, durationMs, speed: 1, url }]);
     setOriginal(f);
+    setRecordedWithSound(false);
     setStage("edit");
+  };
+
+  const publish: Publisher = ({ video, thumbnail, caption, hashtags, audioName }, onProgress) => {
+    const fd = new FormData();
+    fd.append("video", video);
+    fd.append("caption", caption);
+    fd.append("hashtags", hashtags);
+    fd.append("audioName", audioName);
+    if (sound) fd.append("soundId", sound.sound.id);
+    if (thumbnail) fd.append("thumbnail", thumbnail, "cover.jpg");
+    return studioUpload(api, "/api/videos", fd, onProgress).then(() => undefined);
   };
 
   const modeSwitch = (
@@ -44,28 +85,46 @@ export function Studio({ username, mediapipeBase, publish, onClose, onPublished 
   return (
     <div className="relative h-full w-full overflow-hidden bg-black text-white">
       {stage === "capture" && mode === "camera" && (
-        <>
-          <Camera
-            mediapipeBase={mediapipeBase}
-            look={look}
-            onLook={setLook}
-            segments={segments}
-            onSegments={(s) => { setSegments(s); setOriginal(undefined); }}
-            onClose={onClose}
-            onNext={() => setStage("edit")}
-            onImport={importFile}
-            modeSwitch={modeSwitch}
-          />
-        </>
+        <Camera
+          mediapipeBase={mediapipeBase}
+          api={api}
+          look={look}
+          onLook={setLook}
+          segments={segments}
+          onSegments={(s) => {
+            setSegments(s);
+            setOriginal(undefined);
+            if (s.length && sound) setRecordedWithSound(true);
+            if (!s.length) setRecordedWithSound(false);
+          }}
+          sound={sound}
+          onPickSound={() => setPicking(true)}
+          onClearSound={() => setSound(null)}
+          onClose={onClose}
+          onNext={() => setStage("edit")}
+          onImport={importFile}
+          modeSwitch={modeSwitch}
+        />
       )}
       {stage === "capture" && mode === "text" && (
-        <TextPost onClose={onClose} modeSwitch={modeSwitch} onNext={(f) => { setResult(f); setFromText(true); setStage("post"); }} />
+        <TextPost
+          api={api}
+          sound={sound}
+          onPickSound={() => setPicking(true)}
+          onClose={onClose}
+          modeSwitch={modeSwitch}
+          onNext={(f) => { setResult(f); setFromText(true); setStage("post"); }}
+        />
       )}
       {stage === "edit" && (
         <Editor
+          api={api}
           segments={segments}
           look={look}
           original={original}
+          sound={sound}
+          initialOriginalVolume={recordedWithSound ? 0 : 1}
+          onPickSound={() => setPicking(true)}
           onBack={() => {
             if (original) { segments.forEach((s) => URL.revokeObjectURL(s.url)); setSegments([]); setOriginal(undefined); }
             setStage("capture");
@@ -74,36 +133,16 @@ export function Studio({ username, mediapipeBase, publish, onClose, onPublished 
         />
       )}
       {stage === "post" && result && (
-        <PostDetails file={result} username={username} publish={publish} onBack={() => setStage(fromText ? "capture" : "edit")} onPublished={onPublished} />
+        <PostDetails
+          file={result}
+          username={username}
+          soundLabel={sound ? `${sound.sound.title} — ${sound.sound.artist}` : null}
+          publish={publish}
+          onBack={() => setStage(fromText ? "capture" : "edit")}
+          onPublished={onPublished}
+        />
       )}
+      {picking && <SoundPicker api={api} current={sound} onPick={setSound} onClose={() => setPicking(false)} />}
     </div>
   );
-}
-
-/** Uploads with progress (fetch has no upload progress). `auth` adds a Bearer token for the app. */
-export function xhrPublisher(endpoint: string, auth?: string): Publisher {
-  return ({ video, thumbnail, caption, hashtags, audioName }, onProgress) =>
-    new Promise((resolve, reject) => {
-      const fd = new FormData();
-      fd.append("video", video);
-      fd.append("caption", caption);
-      fd.append("hashtags", hashtags);
-      fd.append("audioName", audioName);
-      if (thumbnail) fd.append("thumbnail", thumbnail, "cover.jpg");
-      const xhr = new XMLHttpRequest();
-      xhr.open("POST", endpoint);
-      if (auth) xhr.setRequestHeader("Authorization", `Bearer ${auth}`);
-      else xhr.withCredentials = true;
-      xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
-      xhr.onload = () => {
-        if (xhr.status === 201) return resolve();
-        try {
-          reject(new Error(JSON.parse(xhr.responseText).error));
-        } catch {
-          reject(new Error(`Upload failed (${xhr.status}).`));
-        }
-      };
-      xhr.onerror = () => reject(new Error("Network error — check your connection and try again."));
-      xhr.send(fd);
-    });
 }

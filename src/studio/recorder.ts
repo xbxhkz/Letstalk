@@ -43,6 +43,8 @@ export type ExportJob = {
   look: Look;
   overlays: Overlay[];
   volume: number; // original sound, 0..1
+  /** Added sound: absolute URL, where in it the video starts, and its volume. */
+  music?: { url: string; startMs: number; volume: number } | null;
   /** Text posts: a background drawer and a fixed length instead of clips. */
   textPost?: { draw: (ctx: CanvasRenderingContext2D, t: number) => void; seconds: number };
 };
@@ -62,7 +64,28 @@ export async function exportVideo(job: ExportJob, onProgress: (p: number) => voi
   const gain = audioCtx.createGain();
   gain.gain.value = job.volume;
   gain.connect(dest);
-  const tracks = [...canvasStream.getVideoTracks(), ...(job.textPost ? [] : dest.stream.getAudioTracks())];
+  // Added sound: its own element and gain, positioned per clip so it stays in sync across cuts.
+  let music: HTMLAudioElement | null = null;
+  if (job.music) {
+    music = new Audio();
+    music.crossOrigin = "anonymous"; // WebAudio needs CORS when the sound is on another origin (the app)
+    music.preload = "auto";
+    music.src = job.music.url;
+    await new Promise<void>((resolve, reject) => {
+      music!.oncanplay = () => resolve();
+      music!.onerror = () => reject(new Error("The sound couldn't be loaded."));
+    });
+    const mg = audioCtx.createGain();
+    mg.gain.value = job.music.volume;
+    audioCtx.createMediaElementSource(music).connect(mg).connect(dest);
+  }
+  const startMusic = async (atMs: number) => {
+    if (!music || !job.music) return;
+    music.currentTime = (job.music.startMs + atMs) / 1000;
+    await music.play().catch(() => {});
+  };
+  const withAudio = !job.textPost || !!music;
+  const tracks = [...canvasStream.getVideoTracks(), ...(withAudio ? dest.stream.getAudioTracks() : [])];
   const rec = new MediaRecorder(new MediaStream(tracks), { mimeType: mime, videoBitsPerSecond: 6_000_000, audioBitsPerSecond: 128_000 });
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
@@ -75,6 +98,7 @@ export async function exportVideo(job: ExportJob, onProgress: (p: number) => voi
       bg.height = OUT_H;
       const bctx = bg.getContext("2d")!;
       rec.start(250);
+      await startMusic(0);
       const start = performance.now();
       await new Promise<void>((resolve) => {
         const frame = () => {
@@ -104,6 +128,7 @@ export async function exportVideo(job: ExportJob, onProgress: (p: number) => voi
         video.playbackRate = seg.speed;
         // Keep pitch at slow/fast speeds, like TikTok.
         (video as HTMLVideoElement & { preservesPitch?: boolean }).preservesPitch = true;
+        await startMusic(doneMs);
         await video.play();
         await new Promise<void>((resolve) => {
           let finished = false;
@@ -119,10 +144,12 @@ export async function exportVideo(job: ExportJob, onProgress: (p: number) => voi
           };
           frame();
         });
+        music?.pause();
         doneMs += seg.durationMs / seg.speed;
       }
     }
   } finally {
+    music?.pause();
     if (rec.state !== "inactive") rec.stop();
   }
   const blob = await done;

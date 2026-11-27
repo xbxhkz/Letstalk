@@ -9,6 +9,7 @@ export function videoInclude(viewerId: string | null) {
   return {
     author: { select: { ...userLiteSelect, followers: { where: { followerId: viewerId ?? none }, select: { followerId: true } } } },
     _count: { select: { likes: true, comments: true, saves: true } },
+    sound: { select: { id: true, title: true, artist: true } },
     likes: { where: { userId: viewerId ?? none }, select: { userId: true } },
     saves: { where: { userId: viewerId ?? none }, select: { userId: true } },
   } satisfies Prisma.VideoInclude;
@@ -25,6 +26,7 @@ export function toVideoDTO(v: VideoWithRelations, viewerId: string | null): Vide
     caption: v.caption,
     hashtags: v.hashtags ? v.hashtags.split(" ") : [],
     audioName: v.audioName,
+    sound: v.sound,
     createdAt: v.createdAt.toISOString(),
     author: { ...author, followedByMe: followers.length > 0, isMe: viewerId === author.id },
     likes: v.baseLikes + v._count.likes,

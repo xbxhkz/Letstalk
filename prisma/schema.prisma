@@ -18,6 +18,7 @@ model User {
   phone        String?       @unique // E.164, verified
   googleId     String?       @unique // Google's stable "sub" claim
   needsUsername Boolean      @default(false) // new code/Google accounts pick a handle on first sign-in
+  sounds        Sound[]
   createdAt    DateTime      @default(now())
   videos       Video[]
   likes        Like[]
@@ -42,6 +43,8 @@ model Video {
   caption      String
   hashtags     String    @default("") // space-separated, lowercase, without '#'
   audioName    String
+  soundId      String?   // the library or uploaded sound this video uses ("Use this sound")
+  sound        Sound?    @relation(fields: [soundId], references: [id], onDelete: SetNull)
   shares       Int       @default(0)
   baseLikes    Int       @default(0) // seeded engagement added on top of real Like rows
   baseSaves    Int       @default(0)
@@ -187,4 +190,22 @@ model OAuthState {
   expiresAt    DateTime
   consumedAt   DateTime?
   createdAt    DateTime  @default(now())
+}
+
+/// A reusable sound: built-in library tracks (slug set) or audio uploaded by users.
+model Sound {
+  id         String   @id @default(cuid())
+  slug       String?  @unique // built-in library id (src/lib/sound-library.json)
+  title      String
+  artist     String
+  genre      String   @default("")
+  url        String
+  coverUrl   String?
+  durationMs Int
+  createdAt  DateTime @default(now())
+  uploaderId String?
+  uploader   User?    @relation(fields: [uploaderId], references: [id], onDelete: SetNull)
+  videos     Video[]
+
+  @@index([createdAt])
 }

@@ -1,11 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Readable } from "node:stream";
+import { corsHeaders } from "@/lib/cors";
 
 export const dynamic = "force-dynamic";
 
 const ROOT = path.join(process.cwd(), "public", "uploads");
-const TYPES: Record<string, string> = { ".mp4": "video/mp4", ".webm": "video/webm", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".svg": "image/svg+xml" };
+const TYPES: Record<string, string> = { ".mp4": "video/mp4", ".webm": "video/webm", ".jpg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".svg": "image/svg+xml", ".m4a": "audio/mp4", ".mp3": "audio/mpeg", ".aac": "audio/aac", ".ogg": "audio/ogg", ".wav": "audio/wav", ".weba": "audio/webm" };
 
 /**
  * Serves runtime uploads from public/uploads with HTTP Range support.
@@ -24,7 +25,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ path: st
   }
   const type = TYPES[path.extname(file).toLowerCase()] ?? "application/octet-stream";
   const range = req.headers.get("range");
-  const base = { "Content-Type": type, "Accept-Ranges": "bytes", "Cache-Control": "public, max-age=31536000, immutable" };
+  // The Android camera studio (https://localhost) mixes uploaded sounds with WebAudio, which needs CORS.
+  const base = { "Content-Type": type, "Accept-Ranges": "bytes", "Cache-Control": "public, max-age=31536000, immutable", ...corsHeaders(req) };
 
   if (range) {
     const m = /bytes=(\d*)-(\d*)/.exec(range);

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Loader2, AlignCenter, AlignLeft, AlignRight } from "lucide-react";
+import { X, Loader2, AlignCenter, AlignLeft, AlignRight, Music2 } from "lucide-react";
 import { Compositor, DEFAULT_LOOK, OUT_H, OUT_W } from "./compositor";
 import { exportVideo } from "./recorder";
+import { mediaUrl, type SoundPick, type StudioApi } from "./api";
 import { TEXT_STYLES, measure, newId, type TextOverlay, type TextStyle } from "./overlays";
 
 /** Animated gradient backgrounds for text posts. */
@@ -57,7 +58,21 @@ function wrap(ctx: CanvasRenderingContext2D, text: string, style: TextStyle) {
     .join("\n");
 }
 
-export function TextPost({ onClose, onNext, modeSwitch }: { onClose: () => void; onNext: (file: File) => void; modeSwitch: React.ReactNode }) {
+export function TextPost({
+  onClose,
+  onNext,
+  modeSwitch,
+  api,
+  sound,
+  onPickSound,
+}: {
+  onClose: () => void;
+  onNext: (file: File) => void;
+  modeSwitch: React.ReactNode;
+  api: StudioApi;
+  sound: SoundPick | null;
+  onPickSound: () => void;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [text, setText] = useState("");
   const [style, setStyle] = useState<TextStyle>("classic");
@@ -106,7 +121,14 @@ export function TextPost({ onClose, onNext, modeSwitch }: { onClose: () => void;
     try {
       const stops = BACKGROUNDS[bg].stops;
       const file = await exportVideo(
-        { segments: [], look: DEFAULT_LOOK, overlays: [overlay.current], volume: 0, textPost: { draw: (ctx, t) => drawBackground(ctx, stops, t), seconds: 6 } },
+        {
+          segments: [],
+          look: DEFAULT_LOOK,
+          overlays: [overlay.current],
+          volume: 0,
+          music: sound ? { url: (await mediaUrl(api, sound.sound.url))!, startMs: sound.startMs, volume: 1 } : null,
+          textPost: { draw: (ctx, t) => drawBackground(ctx, stops, t), seconds: 6 },
+        },
         setProgress,
       );
       onNext(file);
@@ -124,6 +146,9 @@ export function TextPost({ onClose, onNext, modeSwitch }: { onClose: () => void;
       <canvas ref={canvasRef} className="absolute inset-0 h-full w-full object-cover" />
       <div className="absolute inset-x-0 top-0 z-20 flex items-center justify-between px-3 pt-[max(16px,env(safe-area-inset-top))]">
         <button type="button" onClick={onClose} aria-label="Close" className="p-1.5 drop-shadow"><X className="h-7 w-7" /></button>
+        <button type="button" onClick={onPickSound} className="flex max-w-[55%] items-center gap-1.5 rounded-full bg-black/30 px-3 py-1.5 text-sm font-semibold">
+          <Music2 className="h-4 w-4 shrink-0" /><span className="truncate">{sound ? sound.sound.title : "Add sound"}</span>
+        </button>
         <button type="button" aria-label="Alignment" onClick={() => setAlign(align === "center" ? "left" : align === "left" ? "right" : "center")} className="rounded-full bg-black/30 p-2"><AlignIcon className="h-5 w-5" /></button>
       </div>
 

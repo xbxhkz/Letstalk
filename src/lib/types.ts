@@ -12,6 +12,8 @@ export type VideoDTO = {
   caption: string;
   hashtags: string[];
   audioName: string;
+  /** The reusable sound this video uses, if any (links to /sound/[id]). */
+  sound: { id: string; title: string; artist: string } | null;
   createdAt: string;
   author: UserLite & { followedByMe: boolean; isMe: boolean };
   likes: number;
