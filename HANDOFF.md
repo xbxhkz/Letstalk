@@ -20,7 +20,8 @@ MVP complete. All required features are built. `npm run build` passes with 0 err
 - **Gotchas:** `scripts/android-build.mjs` calls `.\gradlew.bat` explicitly (this machine sets NoDefaultCurrentDirectoryInExePath). Other tools on this PC run an older adb (v32), which keeps restarting the SDK's adb (v41), so retry adb commands. `npm test` uses `cp`/`rm`, so run it from Git Bash on Windows.
 ## Where the code is
 - PR #1 (the MVP) was merged into `main` on 2026-11-27.
-- The inbox and recommendation work is on `ccr-0dd9e9b7-i705se` in PR #2 (https://github.com/xbxhkz/Letstalk/pull/2), not merged yet.
+- PR #2 (inbox, For You recommendations and the Android app) was merged into `main` on 2026-11-27 (https://github.com/xbxhkz/Letstalk/pull/2).
+- Everything is on `main`. Local clone: `C:\Users\Admin\Letstalk`.
 
 ## Run it
 `npm install && npm run setup && npm run dev`. Demo login: any seed user and `password123`.
