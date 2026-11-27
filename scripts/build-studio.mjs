@@ -20,6 +20,18 @@ await build({
   logLevel: "warning",
 });
 
+// Face tracking / segmentation worker: a classic (non-module) worker, because MediaPipe loads its
+// runtime with importScripts().
+await build({
+  entryPoints: ["src/studio/vision.worker.ts"],
+  bundle: true,
+  minify: true,
+  format: "iife",
+  outfile: "android-shell/studio-worker.js",
+  target: ["chrome110"],
+  logLevel: "warning",
+});
+
 const css = spawnSync("npx", ["tailwindcss", "-c", "tailwind.config.ts", "-i", "src/studio/studio.css", "-o", "android-shell/studio.css", "--minify"], {
   stdio: ["ignore", "ignore", "inherit"],
   shell: process.platform === "win32",

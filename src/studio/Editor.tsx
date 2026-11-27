@@ -3,7 +3,7 @@ import { ChevronLeft, Type, Sticker, Sparkles, Volume2, Trash2, AlignLeft, Align
 import { Compositor, OUT_H, OUT_W, type Look } from "./compositor";
 import { exportVideo, type Segment } from "./recorder";
 import { STICKERS, TEXT_COLORS, TEXT_STYLES, hitTest, newId, type Overlay, type TextOverlay } from "./overlays";
-import { EffectStrip, FilterStrip, RailButton, Sheet, Slider } from "./ui";
+import { EffectStrip, FilterStrip, ParticleStrip, RailButton, Sheet, Slider } from "./ui";
 import { mediaUrl, type SoundPick, type StudioApi } from "./api";
 
 type Panel = "stickers" | "filters" | "volume" | null;
@@ -39,7 +39,7 @@ export function Editor({
   const [volume, setVolume] = useState(initialOriginalVolume);
   const [musicVolume, setMusicVolume] = useState(1);
   const [panel, setPanel] = useState<Panel>(null);
-  const [filterTab, setFilterTab] = useState<"filters" | "effects" | "beauty">("filters");
+  const [filterTab, setFilterTab] = useState<"filters" | "effects" | "overlays" | "beauty">("filters");
   const [editing, setEditing] = useState<TextOverlay | null>(null);
   const [dragging, setDragging] = useState<{ id: string; overTrash: boolean } | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
@@ -213,7 +213,7 @@ export function Editor({
   };
 
   const unchanged = () =>
-    !!original && !sound && segments.length === 1 && segments[0].speed === 1 && overlays.length === 0 && volume === 1 && look.filter === "none" && look.effect === "none" && look.beauty === 0 && /^video\/(mp4|webm)$/.test(original.type);
+    !!original && !sound && segments.length === 1 && segments[0].speed === 1 && overlays.length === 0 && volume === 1 && look.filter === "none" && look.effect === "none" && look.particles === "none" && look.beauty === 0 && /^video\/(mp4|webm)$/.test(original.type);
 
   const next = async () => {
     if (unchanged()) return onNext(original!);
@@ -286,12 +286,13 @@ export function Editor({
       {panel === "filters" && (
         <Sheet title="Filters & effects" onClose={() => setPanel(null)}>
           <div className="mb-3 flex gap-4 text-sm font-semibold">
-            {(["filters", "effects", "beauty"] as const).map((t) => (
+            {(["filters", "effects", "overlays", "beauty"] as const).map((t) => (
               <button key={t} type="button" onClick={() => setFilterTab(t)} className={filterTab === t ? "capitalize text-white" : "capitalize text-white/50"}>{t}</button>
             ))}
           </div>
-          {filterTab === "filters" && <FilterStrip look={look} onChange={setLook} />}
+          {filterTab === "filters" && <FilterStrip look={look} onChange={setLook} source={videoRef.current} />}
           {filterTab === "effects" && <EffectStrip look={look} onChange={setLook} />}
+          {filterTab === "overlays" && <ParticleStrip look={look} onChange={setLook} />}
           {filterTab === "beauty" && <div className="pb-3"><Slider label="Smooth" value={look.beauty} onChange={(v) => setLook({ ...look, beauty: v })} /></div>}
         </Sheet>
       )}
