@@ -59,6 +59,25 @@ Run `npm run db:seed` at any time to reset the data.
 
 `npm test` runs the recommender tests against a throwaway copy of the database.
 
+## Create: camera studio
+
+Tap **+** to open a TikTok/Snapchat-style studio (`src/studio/`):
+
+- **Camera:** front/back flip, flash (when the camera has a torch), tap-to-toggle *or* hold-to-record, multiple clips with a segmented progress bar and "delete last clip", 15s / 60s / 3m lengths, 3s/10s countdown, speed 0.3×–3× (pitch preserved), and gallery import.
+- **Filters** (GPU/WebGL): Vivid, Warm, Cool, Rosé, Cinema, Vintage, Fade, Mono, Noir, Sunset, Lush with an intensity slider; **Beauty** smoothing; **screen effects**: VHS, Glitch, RGB split, Mirror, Split ×4, Pixel, Comic, Pulse. Filters and effects stay editable after recording.
+- **Face lenses** (MediaPipe face tracking): Shades, Puppy (tongue when you open your mouth), Kitty, Royal crown, Heart eyes, Blush, Clown, Sparkle. They're recorded into the clip.
+- **Editor:** text in Classic / Typewriter / Handwriting / Neon / Serif, 10 colours, three background styles and alignment; emoji stickers; drag to move, pinch (or mouse wheel) to resize and rotate, drag onto the bin to delete, tap text to edit; original-sound volume.
+- **Text mode:** TikTok-style text posts on animated gradient backgrounds, published as a 6-second video.
+- **Post:** caption, hashtags, cover-frame picker and sound name, with upload progress.
+
+How it fits together: the camera records the raw picture plus any lens; the final video is rendered by replaying the clips through the same compositor (filter → text/stickers) and recording the result with `MediaRecorder` (MP4/H.264 where supported, otherwise WebM). See `src/studio/compositor.ts` and `recorder.ts`.
+
+**Where the camera works:** browsers only allow the camera on secure pages, so:
+- `https://` sites and `localhost`: the studio runs in the page.
+- **The Android app:** the studio is bundled into the APK (`android-shell/studio.html`, secure origin `https://localhost`), so it works even with a plain-http LAN server. `/create` gets a 30-minute upload-only token (`POST /api/upload-token`), and the app uploads with it. `/api/videos` allows cross-origin calls only from the app's origin.
+- Plain-http browsers: `/create` explains this and offers file upload.
+
+The face tracker (14 MB runtime + 3.6 MB model) is served by the Letstalk server from `public/mediapipe/`, which `scripts/prepare-mediapipe.mjs` fills before every `dev`/`build`, and is loaded only when someone picks a lens.
 ## Sign-in
 
 People can sign in four ways, and any of them creates an account on first use:

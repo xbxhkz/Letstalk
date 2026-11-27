@@ -55,3 +55,28 @@ export async function getViewer() {
   const anon = jar.get("lt_anon")?.value;
   return { userId, viewerKey: anon ? `anon:${anon}` : null };
 }
+
+/**
+ * Upload-only tokens for the Android app's camera studio, which runs at https://localhost and so
+ * can't send the session cookie to the server. A signed-in page asks /api/upload-token for one.
+ */
+export async function createUploadToken(userId: string) {
+  return new SignJWT({ sub: userId, scope: "upload" })
+    .setProtectedHeader({ alg: "HS256" })
+    .setAudience("letstalk-upload")
+    .setIssuedAt()
+    .setExpirationTime("30m")
+    .sign(secret);
+}
+
+/** The user id from a valid "Authorization: Bearer <upload token>" header, else null. */
+export async function getUploadTokenUserId(req: Request): Promise<string | null> {
+  const m = /^Bearer\s+(.+)$/i.exec(req.headers.get("authorization") ?? "");
+  if (!m) return null;
+  try {
+    const { payload } = await jwtVerify(m[1], secret, { audience: "letstalk-upload" });
+    return payload.scope === "upload" && typeof payload.sub === "string" ? payload.sub : null;
+  } catch {
+    return null;
+  }
+}

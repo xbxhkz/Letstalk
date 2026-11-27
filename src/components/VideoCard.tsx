@@ -198,6 +198,19 @@ export function VideoCard({ video, active, preload, onUpdate, onFollowChange, on
         muted={muted}
         preload={preload}
         onPlay={() => setPlaying(true)}
+        onLoadedMetadata={(e) => {
+          // WebM recorded in a browser has no duration header (reports Infinity). Seeking far ahead makes
+          // the browser compute it, which progress and watch-time tracking need; then jump back.
+          const v = e.currentTarget;
+          if (v.duration === Infinity) {
+            const back = () => {
+              v.removeEventListener("durationchange", back);
+              v.currentTime = 0;
+            };
+            v.addEventListener("durationchange", back);
+            v.currentTime = 1e9;
+          }
+        }}
         onPause={() => setPlaying(false)}
         onTimeUpdate={(e) => onTime(e.currentTarget)}
         className="absolute inset-0 h-full w-full object-cover"

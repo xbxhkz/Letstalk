@@ -30,6 +30,7 @@ if (!env.ANDROID_HOME) console.warn("ANDROID_HOME is not set and the Android SDK
 const run = (cmd, cwd = ".") => execSync(cmd, { stdio: "inherit", cwd, env });
 
 run("node scripts/android-default-server.mjs");
+run("node scripts/build-studio.mjs"); // camera studio bundled into the app (needs the app's secure origin)
 if (!existsSync("android")) run("npx cap add android");
 run("npx cap sync android");
 // Explicit ".\" — Windows may not search the current directory for programs (NoDefaultCurrentDirectoryInExePath).

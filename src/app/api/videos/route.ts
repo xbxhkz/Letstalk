@@ -3,7 +3,8 @@ import path from "node:path";
 import crypto from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getSessionUserId, getViewer } from "@/lib/auth";
+import { getSessionUserId, getUploadTokenUserId, getViewer } from "@/lib/auth";
+import { preflight, withCors } from "@/lib/cors";
 import { rankForYou } from "@/lib/recommend";
 import { extractHashtags, findVideos, videoDTOById, videosByIdsInOrder } from "@/lib/videos";
 import { badRequest, json, unauthorized } from "@/lib/api";
@@ -66,10 +67,19 @@ export async function GET(req: Request) {
   return json({ videos });
 }
 
-/** POST /api/videos — multipart: video (mp4/webm), caption, hashtags?, audioName?, thumbnail? */
+export const OPTIONS = preflight;
+
+/**
+ * POST /api/videos — multipart: video (mp4/webm), caption, hashtags?, audioName?, thumbnail?
+ * Auth: the session cookie, or (Android camera studio) "Authorization: Bearer <upload token>".
+ */
 export async function POST(req: Request) {
-  const userId = await getSessionUserId();
-  if (!userId) return unauthorized();
+  const userId = (await getSessionUserId()) ?? (await getUploadTokenUserId(req));
+  if (!userId) return withCors(req, unauthorized());
+  return withCors(req, await createVideo(req, userId));
+}
+
+async function createVideo(req: Request, userId: string) {
   const form = await req.formData().catch(() => null);
   if (!form) return badRequest("Expected multipart form data");
 

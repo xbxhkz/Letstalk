@@ -4,6 +4,7 @@ import http from "node:http";
 import crypto from "node:crypto";
 import { spawn } from "node:child_process";
 import { SignJWT, exportJWK, generateKeyPair } from "jose";
+import { PrismaClient } from "@prisma/client";
 
 const APP_PORT = 3100;
 const G_PORT = 4455;
@@ -197,6 +198,11 @@ try {
   failed++;
 } finally {
   if (failed) console.log("\n--- server log tail ---\n" + serverLog.split("\n").slice(-30).join("\n"));
+  // Remove the accounts this run created (test.example emails, fictional +1555 numbers, fake Google ids).
+  const db = new PrismaClient();
+  await db.user.deleteMany({ where: { OR: [{ email: { endsWith: "@test.example" } }, { phone: { startsWith: "+1555" } }, { googleId: { startsWith: "g-" } }] } }).catch(() => {});
+  await db.otpCode.deleteMany({ where: { OR: [{ target: { endsWith: "@test.example" } }, { target: { startsWith: "+1555" } }] } }).catch(() => {});
+  await db.$disconnect();
   console.log(failed ? `\n${failed} check(s) failed` : "\nAll sign-in checks passed");
   stop();
   setTimeout(() => process.exit(failed ? 1 : 0), 500);
