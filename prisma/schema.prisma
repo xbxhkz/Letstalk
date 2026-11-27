@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(cuid())
+  username     String        @unique
+  displayName  String
+  bio          String        @default("")
+  avatarUrl    String?
+  passwordHash String
+  createdAt    DateTime      @default(now())
+  videos       Video[]
+  likes        Like[]
+  saves        Save[]
+  comments     Comment[]
+  commentLikes CommentLike[]
+  followers    Follow[]      @relation("following")
+  following    Follow[]      @relation("follower")
+}
+
+model Video {
+  id           String    @id @default(cuid())
+  url          String
+  thumbnailUrl String?
+  caption      String
+  hashtags     String    @default("") // space-separated, lowercase, without '#'
+  audioName    String
+  shares       Int       @default(0)
+  baseLikes    Int       @default(0) // seeded engagement added on top of real Like rows
+  baseSaves    Int       @default(0)
+  views        Int       @default(0)
+  createdAt    DateTime  @default(now())
+  authorId     String
+  author       User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  likes        Like[]
+  saves        Save[]
+  comments     Comment[]
+
+  @@index([createdAt])
+}
+
+model Like {
+  userId    String
+  videoId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@id([userId, videoId])
+}
+
+model Save {
+  userId    String
+  videoId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@id([userId, videoId])
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+}
+
+model Comment {
+  id        String        @id @default(cuid())
+  text      String
+  createdAt DateTime      @default(now())
+  userId    String
+  videoId   String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video     Video         @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  likes     CommentLike[]
+
+  @@index([videoId, createdAt])
+}
+
+model CommentLike {
+  userId    String
+  commentId String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@id([userId, commentId])
+}

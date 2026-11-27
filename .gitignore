@@ -1,0 +1,12 @@
+node_modules
+.next
+out
+next-env.d.ts
+*.tsbuildinfo
+.env*.local
+prisma/*.db
+prisma/*.db-journal
+# user uploads (seed media is committed)
+public/uploads/*
+!public/uploads/seed
+!public/uploads/.gitkeep
