@@ -11,6 +11,11 @@ MVP complete. All required features are built. `npm run build` passes with 0 err
 - **Verified:** `npm run build` is clean and `npm test` passes 5/5 (recommender behaviour). A two-user Playwright run checked watch events, batch loading, the share sheet and Why this video, sending a video by DM, chat in both directions with Seen receipts, the unread badges and the Activity filters, with zero console errors.
 - **New schema:** `View`, `Message`, `Notice`, and `User.activitySeenAt` / `User.followersSeenAt`. Run `npm run setup` to apply.
 
+## Pending: Android APK (not started)
+- Not built in the cloud session: its network policy blocks `dl.google.com` / `maven.google.com` (Android SDK and Android Gradle plugin). It will be built locally with Android Studio.
+- Architecture to keep in mind: Letstalk is a Next.js **server** (API routes plus SQLite), so the APK can't bundle it. The APK must be a WebView/Capacitor shell that loads a running server's URL, either a deployed host or `http://<your-LAN-IP>:3000` from `npm run dev -- -H 0.0.0.0`. Plain http also needs Android cleartext traffic allowed, and session cookies are `Secure` under `next start` unless `INSECURE_COOKIES=1`.
+- Suggested route: `npm i @capacitor/core @capacitor/cli @capacitor/android`, `npx cap init Letstalk com.letstalk.app`, set `server.url` in `capacitor.config.ts`, then `npx cap add android` and `npx cap open android` → Build → Build APK(s).
+
 ## Where the code is
 - PR #1 (the MVP) was merged into `main` on 2026-11-27.
 - The inbox and recommendation work is on `ccr-0dd9e9b7-i705se` in PR #2 (https://github.com/xbxhkz/Letstalk/pull/2), not merged yet.
