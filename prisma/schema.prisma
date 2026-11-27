@@ -22,6 +22,13 @@ model User {
   commentLikes CommentLike[]
   followers    Follow[]      @relation("following")
   following    Follow[]      @relation("follower")
+  views        View[]
+  sent         Message[]     @relation("sent")
+  received     Message[]     @relation("received")
+  notices      Notice[]
+  // Inbox read markers: activity / follows newer than these are "unread".
+  activitySeenAt  DateTime @default(now())
+  followersSeenAt DateTime @default(now())
 }
 
 model Video {
@@ -41,8 +48,58 @@ model Video {
   likes        Like[]
   saves        Save[]
   comments     Comment[]
+  watchViews   View[]
+  messages     Message[]
 
   @@index([createdAt])
+}
+
+/// One viewing session of a video: how long it was watched and how many times it played to the end.
+/// viewerKey is the user id when logged in, or "anon:<cookie id>" for logged-out visitors.
+model View {
+  id          String   @id @default(cuid())
+  viewerKey   String
+  userId      String?
+  videoId     String
+  watchMs     Int
+  durationMs  Int
+  completions Int      @default(0)
+  createdAt   DateTime @default(now())
+  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video       Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  @@index([viewerKey, createdAt])
+  @@index([videoId])
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  text        String    @default("")
+  videoId     String?   // a shared video
+  createdAt   DateTime  @default(now())
+  readAt      DateTime?
+  senderId    String
+  recipientId String
+  sender      User      @relation("sent", fields: [senderId], references: [id], onDelete: Cascade)
+  recipient   User      @relation("received", fields: [recipientId], references: [id], onDelete: Cascade)
+  video       Video?    @relation(fields: [videoId], references: [id], onDelete: SetNull)
+
+  @@index([senderId, recipientId, createdAt])
+  @@index([recipientId, readAt])
+}
+
+/// System notifications (welcome, upload published, ...).
+model Notice {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String
+  body      String
+  link      String?
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model Like {

@@ -9,6 +9,7 @@ import { api, copyText } from "@/lib/client";
 import { useAuth, useMute, useToast } from "./Providers";
 import { Avatar } from "./Avatar";
 import { Caption } from "./Caption";
+import { ShareSheet } from "./ShareSheet";
 
 type Props = {
   video: VideoDTO;
@@ -33,8 +34,51 @@ export function VideoCard({ video, active, preload, onUpdate, onFollowChange, on
   const [likeAnim, setLikeAnim] = useState(0);
   const [progress, setProgress] = useState(0);
   const [justFollowed, setJustFollowed] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const tapTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const lastTap = useRef(0);
+
+  // ---- watch tracking (feeds the recommender) ----
+  const watch = useRef({ ms: 0, last: 0, completions: 0 });
+  const flushWatch = useRef(() => {});
+  flushWatch.current = () => {
+    const el = ref.current;
+    const w = watch.current;
+    const durationMs = el && isFinite(el.duration) ? Math.round(el.duration * 1000) : 0;
+    let completions = w.completions;
+    if (!completions && durationMs && w.ms >= durationMs * 0.95) completions = 1; // watched to (almost) the end
+    const payload = { videoId: video.id, watchMs: Math.round(w.ms), durationMs, completions };
+    watch.current = { ms: 0, last: el?.currentTime ?? 0, completions: 0 };
+    if (payload.watchMs < 300) return;
+    const body = JSON.stringify(payload);
+    if (document.visibilityState === "hidden" && navigator.sendBeacon) navigator.sendBeacon("/api/events/watch", new Blob([body], { type: "application/json" }));
+    else fetch("/api/events/watch", { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true }).catch(() => {});
+  };
+  const onTime = (el: HTMLVideoElement) => {
+    const t = el.currentTime;
+    const w = watch.current;
+    if (active && !el.paused) {
+      if (t >= w.last) {
+        const d = t - w.last;
+        if (d < 1.5) w.ms += d * 1000; // ignore seeks
+      } else if (el.duration && w.last > el.duration - 1 && t < 1) {
+        w.completions += 1; // looped back to the start = one full play
+        w.ms += (el.duration - w.last + t) * 1000;
+      }
+    }
+    w.last = t;
+    setProgress(el.duration ? t / el.duration : 0);
+  };
+  useEffect(() => {
+    if (!active) return;
+    watch.current = { ms: 0, last: ref.current?.currentTime ?? 0, completions: 0 };
+    const onHide = () => document.visibilityState === "hidden" && flushWatch.current();
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      flushWatch.current(); // left the screen
+    };
+  }, [active]);
 
   // Autoplay when active, pause + rewind when scrolled away.
   useEffect(() => {
@@ -117,13 +161,14 @@ export function VideoCard({ video, active, preload, onUpdate, onFollowChange, on
     }
   };
 
-  const share = async () => {
+  const countShare = () => {
+    onUpdate({ shares: video.shares + 1 });
+    api<{ shares: number }>(`/api/videos/${video.id}/share`, { method: "POST" }).then((r) => onUpdate({ shares: r.shares })).catch(() => {});
+  };
+  const copyLink = async () => {
     const ok = await copyText(`${window.location.origin}/watch?v=${video.id}`);
     toast(ok ? "Link copied to clipboard" : "Couldn't copy link", ok ? "success" : "error");
-    if (ok) {
-      onUpdate({ shares: video.shares + 1 });
-      api<{ shares: number }>(`/api/videos/${video.id}/share`, { method: "POST" }).then((r) => onUpdate({ shares: r.shares })).catch(() => {});
-    }
+    if (ok) countShare();
   };
 
   const follow = async () => {
@@ -154,7 +199,7 @@ export function VideoCard({ video, active, preload, onUpdate, onFollowChange, on
         preload={preload}
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        onTimeUpdate={(e) => setProgress(e.currentTarget.duration ? e.currentTarget.currentTime / e.currentTarget.duration : 0)}
+        onTimeUpdate={(e) => onTime(e.currentTarget)}
         className="absolute inset-0 h-full w-full object-cover"
       />
 
@@ -236,7 +281,7 @@ export function VideoCard({ video, active, preload, onUpdate, onFollowChange, on
         <RailButton label={formatCount(video.saves)} onClick={save} aria={video.savedByMe ? "Remove bookmark" : "Bookmark"}>
           <Bookmark className={`h-7 w-7 drop-shadow-icon ${video.savedByMe ? "text-yellow-400" : ""}`} fill={video.savedByMe ? "currentColor" : "rgba(255,255,255,0.95)"} strokeWidth={0} />
         </RailButton>
-        <RailButton label={formatCount(video.shares)} onClick={share} aria="Share">
+        <RailButton label={formatCount(video.shares)} onClick={() => setSharing(true)} aria="Share">
           <Share2 className="h-7 w-7 drop-shadow-icon" strokeWidth={2.5} />
         </RailButton>
 
@@ -244,6 +289,8 @@ export function VideoCard({ video, active, preload, onUpdate, onFollowChange, on
           <Avatar user={video.author} size={22} />
         </div>
       </div>
+
+      {sharing && <ShareSheet video={video} onCopyLink={copyLink} onSent={countShare} onClose={() => setSharing(false)} />}
 
       <div className="absolute inset-x-0 bottom-0 z-20 h-0.5 bg-white/20">
         <div className="h-full bg-white/80" style={{ width: `${progress * 100}%` }} />

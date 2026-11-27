@@ -36,6 +36,9 @@ const comments: Record<number, [string, string][]> = {
 };
 
 async function main() {
+  await prisma.view.deleteMany();
+  await prisma.message.deleteMany();
+  await prisma.notice.deleteMany();
   await prisma.commentLike.deleteMany();
   await prisma.comment.deleteMany();
   await prisma.like.deleteMany();
@@ -99,12 +102,51 @@ async function main() {
     let i = 0;
     for (const [u, text] of list) {
       const c = await prisma.comment.create({
-        data: { text, userId: byName[u], videoId: videoIds[Number(n)], createdAt: new Date(now - (list.length - i) * 1000 * 60 * 37) },
+        data: { text, userId: byName[u], videoId: videoIds[Number(n)], createdAt: new Date(now - (list.length - i) * 1000 * 60 * 60 * 3) },
       });
       if (i === 0) await prisma.commentLike.create({ data: { userId: byName[list[list.length - 1][0]], commentId: c.id } });
       i++;
     }
   }
+
+  // Watch history: each like came with a full watch; plus some quick skips and partial views.
+  const H = 60 * 60 * 1000;
+  const view = (u: string, n: number, frac: number, completions: number, hoursAgo: number) =>
+    prisma.view.create({ data: { viewerKey: byName[u], userId: byName[u], videoId: videoIds[n], durationMs: 8000, watchMs: Math.round(8000 * frac + completions * 8000 * (completions > 1 ? 1 : 0)), completions, createdAt: new Date(now - hoursAgo * H) } });
+  for (const [u, n] of likes) await view(u, n, 1, 1, 10);
+  const extraViews: [string, number, number, number, number][] = [
+    ["devdan", 6, 1, 3, 5], ["devdan", 2, 1, 2, 4], ["devdan", 5, 0.1, 0, 3], ["chef_leo", 4, 0.9, 0, 6],
+    ["chef_leo", 5, 0.12, 0, 2], ["nomad.nina", 1, 1, 2, 3], ["nomad.nina", 6, 0.15, 0, 1], ["maya.moves", 1, 0.8, 0, 8],
+  ];
+  for (const v of extraViews) await view(...v);
+
+  // Direct messages
+  const dm = (from: string, to: string, text: string, minutesAgo: number, read: boolean, video?: number) =>
+    prisma.message.create({
+      data: { senderId: byName[from], recipientId: byName[to], text, videoId: video ? videoIds[video] : null, createdAt: new Date(now - minutesAgo * 60000), readAt: read ? new Date(now - (minutesAgo - 1) * 60000) : null },
+    });
+  await dm("devdan", "maya.moves", "", 190, true, 2);
+  await dm("devdan", "maya.moves", "this one's for you, you'd love the patterns", 189, true);
+  await dm("maya.moves", "devdan", "omg turning this into choreo 😂", 120, true);
+  await dm("devdan", "maya.moves", "do it, I'll write the music in CSS", 45, false);
+  await dm("chef_leo", "maya.moves", "Are you free to collab on a cooking-dance video? 🍳💃", 30, false);
+  await dm("nomad.nina", "chef_leo", "", 300, true, 3);
+  await dm("nomad.nina", "chef_leo", "need this recipe for my Lisbon trip", 299, false);
+
+  // System notifications
+  for (const u of users) {
+    await prisma.notice.create({ data: { userId: byName[u.username], title: "Welcome to Letstalk 👋", body: "Your For You feed learns from what you like and what you watch to the end. Follow creators and tap + to post your first video.", link: "/", createdAt: new Date(now - 72 * H), readAt: new Date(now - 70 * H) } });
+  }
+  await prisma.notice.create({ data: { userId: byName["maya.moves"], title: "Your video is trending 🔥", body: "\"Infinite zoom energy for this new routine\" passed 10K likes.", link: `/watch?v=${videoIds[1]}`, createdAt: new Date(now - 2 * H) } });
+  await prisma.comment.create({ data: { text: "@maya.moves you have to try this one", userId: byName["devdan"], videoId: videoIds[6], createdAt: new Date(now - 25 * 60000) } });
+
+  // Backdate the seeded graph, then leave a few fresh items so each inbox has something unread.
+  await prisma.like.updateMany({ data: { createdAt: new Date(now - 26 * H) } });
+  await prisma.save.updateMany({ data: { createdAt: new Date(now - 26 * H) } });
+  await prisma.follow.updateMany({ data: { createdAt: new Date(now - 48 * H) } });
+  for (const u of users) await prisma.user.update({ where: { id: byName[u.username] }, data: { activitySeenAt: new Date(now - H), followersSeenAt: new Date(now - H) } });
+  await prisma.follow.updateMany({ where: { followingId: byName["maya.moves"], followerId: byName["devdan"] }, data: { createdAt: new Date(now - 20 * 60000) } });
+  await prisma.like.updateMany({ where: { videoId: videoIds[1], userId: byName["chef_leo"] }, data: { createdAt: new Date(now - 15 * 60000) } });
 
   console.log(`Seeded ${users.length} users, ${videos.length} videos. Login with any username + password "password123".`);
 }

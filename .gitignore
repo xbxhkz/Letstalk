@@ -10,3 +10,10 @@ prisma/*.db-journal
 public/uploads/*
 !public/uploads/seed
 !public/uploads/.gitkeep
+
+# Android build
+android-shell/default-server.js
+dist/
+android/keystore.properties
+*.jks
+*.keystore
