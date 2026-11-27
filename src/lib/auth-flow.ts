@@ -23,7 +23,9 @@ export function safeNext(raw: string | null | undefined): string {
   try {
     const base = "http://same-site.invalid";
     const u = new URL(v, base);
-    return u.origin === base ? u.pathname + u.search + u.hash : "/";
+    // Parsing removes dot segments ("/.//evil.com" -> "//evil.com"), so check what will actually be sent.
+    const out = u.pathname + u.search + u.hash;
+    return u.origin === base && out.startsWith("/") && !out.startsWith("//") && !out.startsWith("/\\") ? out : "/";
   } catch {
     return "/";
   }
