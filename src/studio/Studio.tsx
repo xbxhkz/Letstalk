@@ -8,6 +8,7 @@ import { SoundPicker } from "./SoundPicker";
 import { probeDuration, type Segment } from "./recorder";
 import { newId } from "./overlays";
 import { studioGet, studioUpload, type Sound, type SoundPick, type StudioApi } from "./api";
+import type { VisionWorkerFactory } from "./vision";
 
 export type { Publisher, PublishInput } from "./PostDetails";
 export type { StudioApi } from "./api";
@@ -21,9 +22,12 @@ export function Studio({
   mediapipeBase,
   api,
   initialSoundId,
+  visionWorker,
   onClose,
   onPublished,
 }: {
+  /** Creates the face-tracking/segmentation worker (each host bundles it its own way). */
+  visionWorker?: VisionWorkerFactory;
   username: string;
   mediapipeBase: string;
   api: StudioApi;
@@ -104,6 +108,7 @@ export function Studio({
           onNext={() => setStage("edit")}
           onImport={importFile}
           modeSwitch={modeSwitch}
+          visionWorker={visionWorker}
         />
       )}
       {stage === "capture" && mode === "text" && (

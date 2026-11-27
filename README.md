@@ -64,8 +64,13 @@ Run `npm run db:seed` at any time to reset the data.
 Tap **+** to open a TikTok/Snapchat-style studio (`src/studio/`):
 
 - **Camera:** front/back flip, flash (when the camera has a torch), tap-to-toggle *or* hold-to-record, multiple clips with a segmented progress bar and "delete last clip", 15s / 60s / 3m lengths, 3s/10s countdown, speed 0.3×–3× (pitch preserved), and gallery import.
-- **Filters** (GPU/WebGL): Vivid, Warm, Cool, Rosé, Cinema, Vintage, Fade, Mono, Noir, Sunset, Lush with an intensity slider; **Beauty** smoothing; **screen effects**: VHS, Glitch, RGB split, Mirror, Split ×4, Pixel, Comic, Pulse. Filters and effects stay editable after recording.
-- **Face lenses** (MediaPipe face tracking; the CPU delegate on phones, since Android WebViews' GPU path returns no faces): Shades, Puppy (tongue when you open your mouth), Kitty, Royal crown, Heart eyes, Blush, Clown, Sparkle. They're recorded into the clip.
+- **46 colour filters** (GPU/WebGL) in five categories with **live preview thumbnails** and an intensity slider. **Trending**: Soft Focus, Golden Hour, Retro Glow, Pink Bloom, Vogue Noir, Dreamy, Y2K. **Portrait**, **Film**, **B&W**, and 26 **Classic** looks ported from CSSgram (MIT, see THIRD_PARTY_NOTICES.md) with proper blend-mode overlays and glow. Plus **Beauty** smoothing.
+- **30 screen effects**: Bloom, Light leak, VHS, Old film, Glitch, RGB split, Prism, Sketch, Toon, Oil paint (Kuwahara), Comic, Halftone, Crosshatch, Pop art, Neon edges, Emboss, Thermal, Night vision, X-ray, Duotone, Kaleido, Mirror, Split ×4, Fisheye, Swirl, Underwater, Tilt-shift, Zoom blur, Pixel, Pulse.
+- **8 animated overlays**: Butterflies, Hearts, Glitter, Snow, Petals, Confetti, Bubbles, Rain. Filters, effects and overlays stay editable after recording.
+- **Backgrounds** (MediaPipe Selfie Segmenter): Portrait blur, Color pop, Spotlight, and green-screen scenes (Sunset, Neon grid, Starry night, City lights, Aurora, Ocean, Studio).
+- **21 face lenses** (MediaPipe face tracking): Puppy (tongue when your mouth opens), Kitty, Bunny, Teddy, Neon devil, Angel, Flower crown, Butterflies, Royal, Shades, Heart eyes, Star eyes, Rainbow (when your mouth opens), Crying, Party, Pirate, Blush, Freckles, Face paint, Clown, Sparkle.
+- **7 face distortions** (GPU warps from face points): Big eyes, Big mouth, Slim face, Alien, Stretch, Twisted, Bobblehead.
+- Lenses, distortions and backgrounds are recorded into the clip. Face tracking and segmentation run in a **Web Worker** (src/studio/vision.worker.ts), so CPU inference never stalls the preview: on the emulator the lens preview went from 13 to 58 fps.
 - **Editor:** text in Classic / Typewriter / Handwriting / Neon / Serif, 10 colours, three background styles and alignment; emoji stickers; drag to move, pinch (or mouse wheel) to resize and rotate, drag onto the bin to delete, tap text to edit; original-sound volume.
 - **Text mode:** TikTok-style text posts on animated gradient backgrounds, published as a 6-second video.
 - **Post:** caption, hashtags, cover-frame picker and sound name, with upload progress.
@@ -77,7 +82,7 @@ How it fits together: the camera records the raw picture plus any lens; the fina
 - **The Android app:** the studio is bundled into the APK (`android-shell/studio.html`, secure origin `https://localhost`), so it works even with a plain-http LAN server. `/create` gets a 30-minute upload-only token (`POST /api/upload-token`), and the app uploads with it. `/api/videos` allows cross-origin calls only from the app's origin.
 - Plain-http browsers: `/create` explains this and offers file upload.
 
-The face tracker (14 MB runtime + 3.6 MB model) is served by the Letstalk server from `public/mediapipe/`, which `scripts/prepare-mediapipe.mjs` fills before every `dev`/`build`, and is loaded only when someone picks a lens.
+The face tracker (14 MB runtime + 3.6 MB face model + 0.24 MB segmentation model) is served by the Letstalk server from `public/mediapipe/`, which `scripts/prepare-mediapipe.mjs` fills before every `dev`/`build`, and is loaded only when someone picks a lens.
 ## Sounds
 
 TikTok-style sounds: **Add sound** in the camera, editor and Text mode opens a picker with **For you** (most used), **Library** and **My sounds**, plus search, tap-to-preview, **Upload a sound** (MP3/M4A/AAC/OGG/WAV/WebM, up to 15 MB and 10 minutes) and a trim step to choose where in the track the video starts.

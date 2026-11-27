@@ -64,6 +64,7 @@ export function CreateHub({ username, startWithUpload, soundId }: { username: st
           username={username}
           mediapipeBase="/mediapipe"
           api={WEB_API}
+          visionWorker={() => new Worker(new URL("../../studio/vision.worker.ts", import.meta.url))}
           initialSoundId={soundId}
           onClose={() => (history.length > 1 ? router.back() : router.push("/"))}
           onPublished={() => {

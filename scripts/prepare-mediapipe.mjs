@@ -6,7 +6,11 @@ import { copyFileSync, existsSync, mkdirSync, statSync, writeFileSync } from "no
 import path from "node:path";
 
 const out = path.join("public", "mediapipe");
-const MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+const MODELS = {
+  "face_landmarker.task": "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+  // Person/background segmentation for background effects (0.24 MB).
+  "selfie_segmenter.tflite": "https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_segmenter/float16/latest/selfie_segmenter.tflite",
+};
 mkdirSync(out, { recursive: true });
 
 const src = path.join("node_modules", "@mediapipe", "tasks-vision", "wasm");
@@ -20,14 +24,15 @@ for (const f of ["vision_wasm_internal.js", "vision_wasm_internal.wasm"]) {
   if (!existsSync(to) || statSync(to).size !== statSync(from).size) copyFileSync(from, to);
 }
 
-const model = path.join(out, "face_landmarker.task");
-if (!existsSync(model) || statSync(model).size < 1_000_000) {
+for (const [name, url] of Object.entries(MODELS)) {
+  const model = path.join(out, name);
+  if (existsSync(model) && statSync(model).size > 100_000) continue;
   try {
-    const res = await fetch(MODEL_URL);
+    const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     writeFileSync(model, Buffer.from(await res.arrayBuffer()));
-    console.log("[mediapipe] downloaded face model");
+    console.log(`[mediapipe] downloaded ${name}`);
   } catch (e) {
-    console.warn(`[mediapipe] couldn't download the face model (${e.message}). Face lenses will be unavailable until it downloads.`);
+    console.warn(`[mediapipe] couldn't download ${name} (${e.message}). The effects that need it stay unavailable until it downloads.`);
   }
 }

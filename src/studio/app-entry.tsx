@@ -40,6 +40,7 @@ if (!server || !token) {
       username={user}
       mediapipeBase={`${server}/mediapipe`}
       api={{ base: server, token }}
+      visionWorker={() => new Worker("studio-worker.js")}
       initialSoundId={soundId}
       onClose={() => location.replace(`${server}/`)}
       onPublished={() => location.replace(`${server}/profile/${encodeURIComponent(user)}`)}

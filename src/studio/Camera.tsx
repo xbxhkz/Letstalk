@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { X, RefreshCw, Gauge, Sparkles, Wand2, Timer, Zap, ZapOff, Image as ImageIcon, Delete, Check, Music2, Loader2, Smile } from "lucide-react";
-import type { FaceLandmarker } from "@mediapipe/tasks-vision";
 import { Compositor, OUT_H, OUT_W, drawCover, type Look } from "./compositor";
-import { DETECT_INTERVAL_MS, LENSES, drawLens, loadLandmarker, type LensId } from "./lenses";
+import { LENSES, drawLens, isWarp, warpsFor, type LensId } from "./lenses";
+import { Vision, type VisionWorkerFactory } from "./vision";
+import { BACKGROUNDS, BackgroundCompositor, type BackgroundId } from "./background";
+import { Warper } from "./warp";
+import { PARTICLES } from "./filters";
 import { pickMime, probeDuration, startClip, type Segment } from "./recorder";
 import { newId } from "./overlays";
-import { EffectStrip, FilterStrip, RailButton, Sheet, Slider } from "./ui";
+import { EffectStrip, FilterStrip, IconGrid, RailButton, Sheet, Slider } from "./ui";
 import { mediaUrl, type SoundPick, type StudioApi } from "./api";
 
 const SPEEDS = [0.3, 0.5, 1, 2, 3];
@@ -31,7 +34,10 @@ export function Camera({
   sound,
   onPickSound,
   onClearSound,
+  visionWorker,
 }: {
+  /** Creates the vision worker (bundler-specific); without it detection runs on the main thread. */
+  visionWorker?: VisionWorkerFactory;
   api: StudioApi;
   sound: SoundPick | null;
   onPickSound: () => void;
@@ -53,7 +59,10 @@ export function Camera({
   const recStreamRef = useRef<MediaStream | null>(null);
   const camStreamRef = useRef<MediaStream | null>(null);
   const clipRef = useRef<ReturnType<typeof startClip> | null>(null);
-  const landmarkerRef = useRef<FaceLandmarker | null>(null);
+  // Face tracking + segmentation, off the main thread when a worker is available.
+  const visionRef = useRef<Vision | null>(null);
+  visionRef.current ??= new Vision(mediapipeBase, visionWorker);
+  useEffect(() => () => visionRef.current?.dispose(), []);
   const lookRef = useRef(look);
   lookRef.current = look;
   const lensRef = useRef<LensId>("none");
@@ -79,12 +88,15 @@ export function Camera({
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [panel, setPanel] = useState<Panel>(null);
-  const [effectsTab, setEffectsTab] = useState<"face" | "screen">("face");
+  const [effectsTab, setEffectsTab] = useState<"face" | "background" | "screen" | "overlays">("face");
   const [lens, setLens] = useState<LensId>("none");
+  const [bg, setBg] = useState<BackgroundId>("none");
+  const [bgState, setBgState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const bgRef = useRef<BackgroundId>("none");
+  bgRef.current = bg;
   const [lensState, setLensState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [faceSeen, setFaceSeen] = useState(true);
   const faceSeenRef = useRef(true);
-  const lastFaceAt = useRef(0);
   const [speed, setSpeed] = useState(1);
   const [maxSec, setMaxSec] = useState(60);
   const [timer, setTimer] = useState<0 | 3 | 10>(0);
@@ -152,34 +164,40 @@ export function Camera({
     startCamera(facing);
   }, [facing, startCamera]);
 
-  // ---- render loop: camera -> (lens) -> capture canvas -> filters -> screen ----
+  // ---- render loop ----
+  // camera -> background (segmentation) -> face distortion or lens -> capture canvas (recorded)
+  //        -> filter/effect/overlay (compositor) -> screen. Filters stay editable; the rest is baked in.
   useEffect(() => {
     if (!viewRef.current) return;
     const comp = new Compositor(viewRef.current);
     const cap = capRef.current!;
     const cctx = cap.getContext("2d")!;
+    const bgc = new BackgroundCompositor(cap.width, cap.height);
+    const warper = new Warper(cap.width, cap.height);
+    const vision = visionRef.current!;
     let raf = 0;
-    let lastTs = 0;
-    let faces: { x: number; y: number }[][] = [];
+    let lastMask: unknown = null;
     const loop = () => {
       const v = videoRef.current;
       if (v && v.readyState >= 2) {
-        const map = drawCover(cctx, v, facing === "user");
         const now = performance.now();
-        const lm = landmarkerRef.current;
-        if (lm && lensRef.current !== "none" && map && now - lastTs >= Math.max(1, DETECT_INTERVAL_MS())) {
-          try {
-            faces = lm.detectForVideo(v, now).faceLandmarks;
-            if (faces.length) lastFaceAt.current = now;
-            // "Find a face" hint after 1.5 s without one (state only changes on flips, not every frame).
-            const seen = now - lastFaceAt.current < 1500;
-            if (seen !== faceSeenRef.current) { faceSeenRef.current = seen; setFaceSeen(seen); }
-          } catch {
-            faces = [];
-          }
-          lastTs = now;
+        const mirror = facing === "user";
+        const bg = bgRef.current;
+        const lens = lensRef.current;
+        // Face tracking / segmentation run in a worker; this just hands it a frame when it's free.
+        vision.update(v, lens !== "none", bg !== "none");
+        if (vision.mask && vision.mask !== lastMask) {
+          bgc.setMask(vision.mask);
+          lastMask = vision.mask;
         }
-        if (map && lensRef.current !== "none") drawLens(cctx, lensRef.current, faces, map, now / 1000);
+        const map = bg !== "none" ? bgc.draw(cctx, v, mirror, bg, !!lastMask, now / 1000) : drawCover(cctx, v, mirror);
+        if (map && lens !== "none") {
+          // "Find a face" hint after 1.5 s without one (state only changes on flips, not every frame).
+          const seen = now - vision.lastFaceAt < 1500;
+          if (seen !== faceSeenRef.current) { faceSeenRef.current = seen; setFaceSeen(seen); }
+          if (isWarp(lens)) warper.apply(cctx, warpsFor(lens, vision.faces, map, now / 1000));
+          else drawLens(cctx, lens, vision.faces, map, now / 1000);
+        }
         comp.render(cap, lookRef.current, [], now / 1000);
       }
       raf = requestAnimationFrame(loop);
@@ -200,12 +218,25 @@ export function Camera({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recording, usedMs, speed, maxSec]);
 
+  const chooseBackground = async (id: BackgroundId) => {
+    setBg(id);
+    if (id === "none" || bgState === "ready") return;
+    setBgState("loading");
+    try {
+      await visionRef.current!.load("seg");
+      setBgState("ready");
+    } catch (e) {
+      console.warn("[studio] segmentation failed to load:", e);
+      setBgState("error");
+    }
+  };
+
   const chooseLens = async (id: LensId) => {
     setLens(id);
-    if (id === "none" || landmarkerRef.current) return;
+    if (id === "none" || lensState === "ready") return;
     setLensState("loading");
     try {
-      landmarkerRef.current = await loadLandmarker(mediapipeBase);
+      await visionRef.current!.load("face");
       setLensState("ready");
     } catch (e) {
       console.warn("[studio] face tracker failed to load:", e);
@@ -418,7 +449,7 @@ export function Camera({
       )}
 
       {/* Panels */}
-      {panel === "filters" && <Sheet title="Filters" onClose={() => setPanel(null)}><FilterStrip look={look} onChange={onLook} /></Sheet>}
+      {panel === "filters" && <Sheet title="Filters" onClose={() => setPanel(null)}><FilterStrip look={look} onChange={onLook} source={capRef.current} /></Sheet>}
       {panel === "beauty" && (
         <Sheet title="Beauty" onClose={() => setPanel(null)}>
           <div className="pb-3"><Slider label="Smooth" value={look.beauty} onChange={(v) => onLook({ ...look, beauty: v })} /></div>
@@ -446,23 +477,24 @@ export function Camera({
       {panel === "effects" && (
         <Sheet title="Effects" onClose={() => setPanel(null)}>
           <div className="mb-3 flex gap-4 text-sm font-semibold">
-            <button type="button" onClick={() => setEffectsTab("face")} className={effectsTab === "face" ? "text-white" : "text-white/50"}>Face</button>
-            <button type="button" onClick={() => setEffectsTab("screen")} className={effectsTab === "screen" ? "text-white" : "text-white/50"}>Screen</button>
+            {([["face", "Face"], ["background", "Background"], ["screen", "Screen"], ["overlays", "Overlays"]] as const).map(([id, label]) => (
+              <button key={id} type="button" onClick={() => setEffectsTab(id)} className={effectsTab === id ? "text-white" : "text-white/50"}>{label}</button>
+            ))}
           </div>
-          {effectsTab === "face" ? (
-            <div className="no-scrollbar flex gap-3 overflow-x-auto pb-1">
-              {LENSES.map((l) => (
-                <button key={l.id} type="button" onClick={() => chooseLens(l.id)} className="flex w-14 shrink-0 flex-col items-center gap-1 text-[11px]">
-                  <span className={`flex h-14 w-14 items-center justify-center rounded-xl bg-white/10 text-2xl ring-2 ${lens === l.id ? "ring-white" : "ring-transparent"}`}>
-                    {lens === l.id && lensState === "loading" ? <Loader2 className="h-5 w-5 animate-spin" /> : l.icon}
-                  </span>
-                  <span className={lens === l.id ? "font-semibold text-white" : "text-white/70"}>{l.name}</span>
-                </button>
-              ))}
+          {effectsTab === "face" && (
+            <div className="max-h-[40vh] space-y-3 overflow-y-auto">
+              <IconGrid label="Lenses" items={LENSES.filter((l) => l.kind === "lens")} selected={lens} onPick={chooseLens} loading={lensState === "loading" ? lens : null} />
+              <IconGrid label="Distort" items={LENSES.filter((l) => l.kind === "warp")} selected={lens} onPick={chooseLens} loading={lensState === "loading" ? lens : null} />
             </div>
-          ) : (
-            <EffectStrip look={look} onChange={onLook} />
           )}
+          {effectsTab === "background" && (
+            <>
+              <IconGrid items={BACKGROUNDS} selected={bg} onPick={chooseBackground} loading={bgState === "loading" ? bg : null} />
+              {bgState === "error" && <p className="pb-2 text-sm text-brand">Background effects couldn&apos;t load.</p>}
+            </>
+          )}
+          {effectsTab === "screen" && <EffectStrip look={look} onChange={onLook} />}
+          {effectsTab === "overlays" && <IconGrid items={PARTICLES} selected={look.particles} onPick={(id) => onLook({ ...look, particles: id })} />}
         </Sheet>
       )}
     </div>
