@@ -13,7 +13,7 @@ MVP complete. All required features are built. `npm run build` passes with 0 err
 
 ## Android APK (2026-11-27)
 - Built on Windows with Android Studio's JDK 21 and SDK 36: `npm run android:apk` produces `dist/Letstalk-debug.apk` (~4 MB, minSdk 24, targetSdk 36, `com.letstalk.app`).
-- **Design:** a Capacitor 8.6.3 shell. `android-shell/index.html` is a start screen that asks for the server URL, stores it, checks it's reachable, and then loads it in the WebView. `capacitor.config.ts` uses `allowNavigation: ["*"]` (keeps any server in-app), cleartext, mixed content and dark `SystemBars`.
+- **Design:** a Capacitor 8.6.3 shell. `android-shell/index.html` is a start screen that asks for the server URL, stores it, checks it's reachable, and then loads it in the WebView. `capacitor.config.ts` allows in-app navigation only to private LAN ranges plus the host in `LETSTALK_SERVER_URL` at build time (a security review flagged the earlier `"*"`: it would expose the native bridge to any site); other URLs open in the system browser. It also enables cleartext, mixed content and dark `SystemBars`.
 - **Hand edits in `android/`** (generated once, then committed; keep them if you regenerate): `usesCleartextTraffic="true"` in AndroidManifest.xml, black window and system-bar colours in `res/values/styles.xml`, and the icons and splash written by `scripts/make-icons.mjs`.
 - **Server for phones:** `npm run build && npm run start:lan` (listens on 0.0.0.0 with `INSECURE_COOKIES=1`).
 - **Verified on the `Oneplus_13` emulator:** the start screen pre-filled the LAN address, Connect loaded the For You feed with autoplay, demo login held its session over http, the inbox showed its badges and messages, and relaunching reconnected and stayed logged in.

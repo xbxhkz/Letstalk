@@ -69,7 +69,9 @@ The APK is a Capacitor shell, not a copy of the app. Letstalk runs as a server (
 npm run android:apk      # -> dist/Letstalk-debug.apk
 ```
 
-The script finds Android Studio's bundled JDK and the SDK in their default locations if `JAVA_HOME` and `ANDROID_HOME` aren't set. It pre-fills the start screen with this computer's LAN address (override with `LETSTALK_SERVER_URL=http://host:port`). `npm run android:open` opens the project in Android Studio.
+The script finds Android Studio's bundled JDK and the SDK in their default locations if `JAVA_HOME` and `ANDROID_HOME` aren't set. It pre-fills the start screen with this computer's LAN address.
+
+For safety, the app only opens private-network addresses (`localhost`, `10.x`, `172.x`, `192.168.x`) in-app; any other link opens in the phone's browser. To use a server outside your network, name it when building: `LETSTALK_SERVER_URL=https://letstalk.example.com npm run android:apk` (PowerShell: `$env:LETSTALK_SERVER_URL='https://...'; npm run android:apk`). That host is added to the allowed list and pre-filled on the start screen. `npm run android:open` opens the project in Android Studio.
 
 **Run a server your phone can reach:**
 
