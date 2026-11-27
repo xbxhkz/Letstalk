@@ -30,6 +30,11 @@ type Mapper = (x: number, y: number) => Pt;
 
 let loading: Promise<FaceLandmarker> | null = null;
 
+const preferCpu = () => typeof navigator !== "undefined" && /Android|iPhone|iPad|LetstalkApp/i.test(navigator.userAgent);
+
+/** How often to run face detection. CPU detection is throttled; lenses keep the last result in between. */
+export const DETECT_INTERVAL_MS = () => (preferCpu() ? 66 : 0);
+
 export function loadLandmarker(base: string): Promise<FaceLandmarker> {
   loading ??= (async () => {
     const { FaceLandmarker, FilesetResolver } = await import("@mediapipe/tasks-vision");
@@ -40,6 +45,10 @@ export function loadLandmarker(base: string): Promise<FaceLandmarker> {
         runningMode: "VIDEO",
         numFaces: 2,
       });
+    // On Android WebViews the GPU delegate often initialises fine and then fails every frame
+    // (GL_INVALID_OPERATION in glFramebufferTexture2D), returning no faces. The CPU (XNNPACK)
+    // delegate is reliable there and fast enough when throttled (see DETECT_INTERVAL_MS).
+    if (preferCpu()) return await make("CPU");
     try {
       return await make("GPU");
     } catch {
