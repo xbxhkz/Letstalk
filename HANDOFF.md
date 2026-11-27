@@ -18,7 +18,7 @@ MVP complete. All required features are built. `npm run build` passes with 0 err
 - **Server for phones:** `npm run build && npm run start:lan` (listens on 0.0.0.0 with `INSECURE_COOKIES=1`).
 - **Verified on the `Oneplus_13` emulator:** the start screen pre-filled the LAN address, Connect loaded the For You feed with autoplay, demo login held its session over http, the inbox showed its badges and messages, and relaunching reconnected and stayed logged in.
 - **Gotchas:** `scripts/android-build.mjs` calls `.\gradlew.bat` explicitly (this machine sets NoDefaultCurrentDirectoryInExePath). Other tools on this PC run an older adb (v32), which keeps restarting the SDK's adb (v41), so retry adb commands. `npm test` uses `cp`/`rm`, so run it from Git Bash on Windows.
-## Sign-in methods (2026-11-27, branch feature/sign-in-methods)
+## Sign-in methods (2026-11-27, merged in PR #3)
 - **Methods:** Google, phone (SMS code), email (code), plus the existing username/password. Code lives in `src/lib/{otp,delivery,identity,google,auth-flow}.ts` and `src/app/api/auth/{otp,google,handoff,username}`. The login UI is `src/app/login/LoginForm.tsx`; new accounts go through `/onboarding`.
 - **Schema:** `User.email/phone/googleId/needsUsername`, `passwordHash` now nullable, new `OtpCode` and `OAuthState`. Run `npm run db:push`.
 - **Providers:** none configured yet. In dev, codes appear on screen and in the console. To go live, fill `.env.local` from `.env.example` (Twilio, SMTP, Google OAuth client).
@@ -31,6 +31,7 @@ MVP complete. All required features are built. `npm run build` passes with 0 err
 ## Where the code is
 - PR #1 (the MVP) was merged into `main` on 2026-11-27.
 - PR #2 (inbox, For You recommendations and the Android app) was merged into `main` on 2026-11-27 (https://github.com/xbxhkz/Letstalk/pull/2).
+- PR #3 (sign-in with Google, phone and email) was merged into `main` on 2026-11-27 (https://github.com/xbxhkz/Letstalk/pull/3).
 - Everything is on `main`. Local clone: `C:\Users\Admin\Letstalk`.
 
 ## Run it
