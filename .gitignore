@@ -18,3 +18,9 @@ android/keystore.properties
 *.jks
 *.keystore
 .next-e2e
+
+# Generated: MediaPipe runtime + model (scripts/prepare-mediapipe.mjs), studio bundle for the APK
+public/mediapipe/
+android-shell/studio.js
+android-shell/studio.css
+android-shell/studio-*.js

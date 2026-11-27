@@ -18,6 +18,16 @@ MVP complete. All required features are built. `npm run build` passes with 0 err
 - **Server for phones:** `npm run build && npm run start:lan` (listens on 0.0.0.0 with `INSECURE_COOKIES=1`).
 - **Verified on the `Oneplus_13` emulator:** the start screen pre-filled the LAN address, Connect loaded the For You feed with autoplay, demo login held its session over http, the inbox showed its badges and messages, and relaunching reconnected and stayed logged in.
 - **Gotchas:** `scripts/android-build.mjs` calls `.\gradlew.bat` explicitly (this machine sets NoDefaultCurrentDirectoryInExePath). Other tools on this PC run an older adb (v32), which keeps restarting the SDK's adb (v41), so retry adb commands. `npm test` uses `cp`/`rm`, so run it from Git Bash on Windows.
+## Camera studio (2026-11-27, branch feature/camera-studio)
+- **Built:** a TikTok/Snapchat-style studio in `src/studio/` (framework-free React): Camera.tsx (recording, speed, timer, flash, lenses), compositor.ts (WebGL filters, beauty, effects and overlays), lenses.ts (MediaPipe face lenses), Editor.tsx (text, stickers, gestures, volume, export), TextPost.tsx, PostDetails.tsx, recorder.ts (MediaRecorder clips, real-time export, cover frames).
+- **Hosts:** `/create` → CreateHub.tsx picks the in-page studio (secure context), the APK's bundled studio (`https://localhost/studio.html`, built by `scripts/build-studio.mjs` during `npm run android:apk`), or upload-only on plain http. The app uploads with an upload token (`/api/upload-token`, `getUploadTokenUserId`, `src/lib/cors.ts`).
+- **Assets:** `public/mediapipe/` (gitignored) is created by `scripts/prepare-mediapipe.mjs` (predev/prebuild). It downloads the face model once; if that fails, only lenses are disabled.
+- **Verified:**
+  - Chrome with a fake camera: recorded a tap clip and a hold clip at 2×; filter, lens, neon text and a dragged sticker; exported in 4 s to a 720×1280 MP4 of the expected length; posted with a cover. Text mode also posted.
+  - Generated-face camera feed: Puppy, Kitty, Shades, Royal and Heart eyes all track the face.
+  - Android emulator: + opened the bundled studio, Android asked for camera and mic permission, recording, sticker, export and posting all worked (upload via token, cross-origin), and the post reached the server as @maya.moves.
+- **Fixed during testing:** the Camera/Text switch was hidden under the camera controls; posting now lands on your profile.
+- **Not included:** a licensed music library, green screen, duet/stitch, photo carousels, live streaming. WebM output (devices without MP4 recording) has no duration header; the feed player works around it (VideoCard `onLoadedMetadata`).
 ## Sign-in methods (2026-11-27, merged in PR #3)
 - **Methods:** Google, phone (SMS code), email (code), plus the existing username/password. Code lives in `src/lib/{otp,delivery,identity,google,auth-flow}.ts` and `src/app/api/auth/{otp,google,handoff,username}`. The login UI is `src/app/login/LoginForm.tsx`; new accounts go through `/onboarding`.
 - **Schema:** `User.email/phone/googleId/needsUsername`, `passwordHash` now nullable, new `OtpCode` and `OAuthState`. Run `npm run db:push`.
@@ -54,6 +64,7 @@ MVP complete. All required features are built. `npm run build` passes with 0 err
 
 ## Possible next steps
 - Android: release signing + Play Store bundle (AAB); push notifications for inbox activity
+- Studio: sound library (needs licensed music), green screen (MediaPipe selfie segmentation), duet/stitch, photo posts, drafts
 - Settings page to add or remove sign-in methods on an existing account
 - Avatar upload in Edit Profile
 - Real-time updates over SSE/WebSocket instead of polling (comments 4 s, chat 3 s, badge 15 s)
