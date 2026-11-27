@@ -43,7 +43,7 @@ export async function getSessionUser() {
   if (!id) return null;
   return prisma.user.findUnique({
     where: { id },
-    select: { id: true, username: true, displayName: true, avatarUrl: true, bio: true },
+    select: { id: true, username: true, displayName: true, avatarUrl: true, bio: true, needsUsername: true },
   });
 }
 

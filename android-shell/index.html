@@ -57,6 +57,9 @@
   <script src="default-server.js" onerror="void 0"></script>
   <script>
     const KEY = "letstalk:server";
+    // Set by MainActivity when Google sign-in hands back to the app (com.letstalk.app://auth?token=...).
+    const handoff = (/^[A-Za-z0-9_-]{20,100}$/.exec(new URLSearchParams(location.search).get("handoff") || "") || [])[0] || null;
+    if (handoff) history.replaceState(null, "", location.pathname);
     const $ = (id) => document.getElementById(id);
     const store = {
       get() { try { return localStorage.getItem(KEY); } catch { return null; } },
@@ -110,7 +113,8 @@
       if (!fromForm && cancelled) return;
       if (!ok) return showForm(`Couldn't reach ${origin}. Check that the server is running and that your phone is on the same network.`);
       store.set(origin);
-      window.location.replace(origin + "/");
+      // Coming back from Google sign-in in the system browser: finish it on the server.
+      window.location.replace(handoff ? `${origin}/api/auth/handoff?token=${encodeURIComponent(handoff)}` : origin + "/");
     }
 
     $("change").addEventListener("click", () => showForm());

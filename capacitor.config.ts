@@ -27,6 +27,8 @@ const config: CapacitorConfig = {
   appName: "Letstalk",
   webDir: "android-shell",
   backgroundColor: "#000000",
+  // Lets the server recognise the app (Google sign-in then finishes in the system browser and hands back).
+  appendUserAgent: "LetstalkApp",
   server: {
     androidScheme: "https",
     // The server is usually a computer on the same Wi-Fi over plain http.

@@ -120,7 +120,7 @@ export function ProfileView({ initialProfile, initialPosted }: { initialProfile:
           onClose={() => setEditing(false)}
           onSaved={(u) => {
             setProfile((p) => ({ ...p, displayName: u.displayName, bio: u.bio }));
-            setUser(u);
+            setUser({ ...u, needsUsername: false });
             setEditing(false);
             toast("Profile updated");
             router.refresh();

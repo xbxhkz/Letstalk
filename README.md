@@ -59,6 +59,28 @@ Run `npm run db:seed` at any time to reset the data.
 
 `npm test` runs the recommender tests against a throwaway copy of the database.
 
+## Sign-in
+
+People can sign in four ways, and any of them creates an account on first use:
+
+| Method | How it works | Needs |
+| --- | --- | --- |
+| **Google** | OAuth 2.0 with PKCE; the ID token is verified against Google's keys | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` |
+| **Phone** | 6-digit code by SMS | Twilio (`TWILIO_*`) |
+| **Email** | 6-digit code by email | SMTP (`SMTP_*`) |
+| **Username + password** | as before (demo accounts use `password123`) | nothing |
+
+See `.env.example` for every setting. **Without a provider, development still works:** the code is printed in the server console and shown on the sign-in screen. In production (`NODE_ENV=production`) an unconfigured method refuses to send.
+
+New Google, phone and email accounts pick a username on `/onboarding` before using the app. A Google account whose **verified** email matches an existing account is linked to it rather than duplicated.
+
+**Safeguards:** codes are stored only as an HMAC, expire after 10 minutes, die after 5 wrong tries and work once. Sends are limited to 1 every 30 s and 5 per hour per address, and 20 per hour per IP. Google sign-in is tied to the browser that started it, which blocks forged callbacks (login CSRF).
+
+**Google on Android:** Google blocks sign-in inside app WebViews, so the app opens Google in the system browser. When it finishes, the browser returns to the app via `com.letstalk.app://auth?token=…`, and the app trades that one-time token for a session. The token only works together with a cookie that exists solely in the app's WebView. Google accepts only `localhost` or public **https** redirect addresses, so on phones Google sign-in needs the server on a public https domain with `PUBLIC_URL` set (phone and email codes work on the LAN).
+
+**Known limitation (Android Google sign-in):** the return link uses a custom scheme, which any app can also register. A malicious app on a victim's phone, combined with a sign-in an attacker started and tricked the victim into completing, could relay the token to the attacker. The proper fix is Android App Links (a verified `https://<PUBLIC_URL>/...` return link backed by `/.well-known/assetlinks.json`), which needs the public domain. Do this before relying on Google sign-in in the app. Browsers aren't affected: there the callback must come from the browser that started sign-in.
+
+**Tests:** `npm test` (unit tests) and `node tests/e2e-auth.mjs`, which runs every sign-in flow against a local fake Google server, including the forged-callback, account-linking and app hand-off cases.
 ## Android app
 
 The APK is a Capacitor shell, not a copy of the app. Letstalk runs as a server (API routes plus SQLite), so the Android app opens on a small start screen (`android-shell/`), asks for the server address, remembers it, and then loads that server in a WebView.

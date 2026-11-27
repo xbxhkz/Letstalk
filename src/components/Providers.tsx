@@ -26,6 +26,11 @@ export function Providers({ initialUser, children }: { initialUser: SessionUser 
   const [user, setUser] = useState(initialUser);
   useEffect(() => setUser(initialUser), [initialUser]);
 
+  // New Google / code accounts must pick a username before using the app.
+  useEffect(() => {
+    if (user?.needsUsername && pathname !== "/onboarding") router.replace(`/onboarding?next=${encodeURIComponent(pathname)}`);
+  }, [user, pathname, router]);
+
   const [unread, setUnread] = useState<Unread>({ followers: 0, activity: 0, system: 0, messages: 0, total: 0 });
   const refreshUnread = useCallback(() => {
     fetch("/api/inbox/unread").then((r) => r.json()).then(setUnread).catch(() => {});
