@@ -19,6 +19,7 @@ export function HomeFeed() {
         <Feed
           key={`${tab}-${user?.id ?? "anon"}`}
           query={`feed=${tab}`}
+          paginate={tab === "foryou"}
           empty={
             tab === "following" ? (
               <EmptyInner title="No videos from people you follow" body="Follow creators from the For You feed or Discover to fill this tab." cta={{ href: "/discover", label: "Discover creators" }} />

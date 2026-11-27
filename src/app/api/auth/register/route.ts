@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSession } from "@/lib/auth";
 import { badRequest, json } from "@/lib/api";
+import { notify } from "@/lib/inbox";
 
 export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
@@ -15,6 +16,7 @@ export async function POST(req: Request) {
     data: { username, displayName: displayName.slice(0, 40), passwordHash: await bcrypt.hash(password, 10) },
     select: { id: true, username: true },
   });
+  await notify(user.id, "Welcome to Letstalk 👋", "Your For You feed learns from what you like and what you watch to the end. Follow creators and tap + to post your first video.", "/");
   await createSession(user.id);
   return json({ user }, 201);
 }

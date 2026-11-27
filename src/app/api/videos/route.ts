@@ -3,9 +3,11 @@ import path from "node:path";
 import crypto from "node:crypto";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { getSessionUserId } from "@/lib/auth";
-import { extractHashtags, findVideos, videoDTOById } from "@/lib/videos";
+import { getSessionUserId, getViewer } from "@/lib/auth";
+import { rankForYou } from "@/lib/recommend";
+import { extractHashtags, findVideos, videoDTOById, videosByIdsInOrder } from "@/lib/videos";
 import { badRequest, json, unauthorized } from "@/lib/api";
+import { notify } from "@/lib/inbox";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +18,8 @@ const IMAGE_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": 
 
 /**
  * GET /api/videos
- *   feed=foryou (default) | following | user
+ *   feed=foryou (default, personalised ranking) | following | user
+ *   exclude=<id,id,...>&limit=<n>&loop=1    (foryou paging: skip what the client already has)
  *   username=<handle>&type=posted|liked   (feed=user)
  *   q=<search>                            (caption / hashtag filter)
  *   tag=<hashtag>
@@ -28,6 +31,21 @@ export async function GET(req: Request) {
   const q = sp.get("q")?.trim();
   const tag = sp.get("tag")?.trim().replace(/^#/, "").toLowerCase();
   const where: Prisma.VideoWhereInput = {};
+
+  if (feed === "foryou" && !q && !tag) {
+    const viewer = await getViewer();
+    const exclude = (sp.get("exclude") ?? "").split(",").filter(Boolean);
+    const limit = Math.min(Math.max(Number(sp.get("limit")) || 8, 1), 30);
+    let ranked = await rankForYou(viewer, { exclude: new Set(exclude), limit });
+    // Everything has been shown: start another lap, avoiding the last few videos seen.
+    if (!ranked.length && exclude.length) ranked = await rankForYou(viewer, { exclude: new Set(exclude.slice(-3)), limit });
+    const videos = await videosByIdsInOrder(ranked.map((r) => r.id), viewerId);
+    const why = new Map(ranked.map((r) => [r.id, r]));
+    return json({
+      videos: videos.map((v) => ({ ...v, why: why.get(v.id)?.reasons ?? [] })),
+      ...(sp.get("debug") === "1" ? { debug: ranked } : {}),
+    });
+  }
 
   if (feed === "following") {
     if (!viewerId) return json({ videos: [], requiresAuth: true });
@@ -87,5 +105,6 @@ export async function POST(req: Request) {
   const video = await prisma.video.create({
     data: { url: `/api/media/${videoName}`, thumbnailUrl, caption: fullCaption, hashtags: tags.join(" "), audioName, authorId: userId },
   });
+  await notify(userId, "Your video is live 🎉", `"${fullCaption.slice(0, 60)}${fullCaption.length > 60 ? "…" : ""}" is now in the For You feed.`, `/watch?v=${video.id}`);
   return json({ video: await videoDTOById(video.id, userId) }, 201);
 }

@@ -10,7 +10,8 @@
     "postinstall": "prisma generate",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
-    "setup": "prisma db push && prisma db seed"
+    "setup": "prisma db push && prisma db seed",
+    "test": "cp prisma/dev.db prisma/test.db && DATABASE_URL=file:./test.db tsx --test tests/*.test.ts; s=$?; rm -f prisma/test.db; exit $s"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -27,7 +27,12 @@ Run `npm run db:seed` at any time to reset the data.
 | `/discover[?q=]` | Search (captions, `#hashtags`, `@users`), trending hashtags, 2-column grid |
 | `/create` | Upload MP4/WebM with preview, caption, hashtags and sound name (login required) |
 | `/profile/[username]` | Profile header, follow or edit, Posted and Liked grids |
-| `/inbox` | Likes, comments and new followers on your content |
+| `/inbox` | TikTok-style inbox: friends row, **New followers**, **Activity**, **System notifications**, then message threads |
+| `/inbox/activity` | Likes, comments, comment likes, @mentions and follows, filterable, split into New / Earlier |
+| `/inbox/followers` | New followers with Follow back |
+| `/inbox/system` | System notices (welcome, "your video is live", milestones) |
+| `/inbox/chat/[username]` | Direct messages, shared-video cards, "Seen" receipts (polls every 3 s) |
+| `/inbox/new` | Pick a friend or search for a user to message |
 | `/login` | Log in or sign up |
 
 ### API
@@ -35,12 +40,30 @@ Run `npm run db:seed` at any time to reset the data.
 `POST /api/auth/{register,login,logout}` · `GET /api/auth/me`
 `GET|POST /api/videos` · `GET /api/videos/:id` · `POST /api/videos/:id/{like,save,share}` · `GET|POST /api/videos/:id/comments`
 `POST /api/comments/:id/like` · `GET /api/users/:username` · `POST /api/users/:username/follow` · `PATCH /api/users/me`
-`GET /api/search?q=` · `GET /api/trending` · `GET /api/inbox` · `GET /api/media/*` (serves uploads, supports Range)
+`GET /api/search?q=` · `GET /api/trending` · `GET /api/media/*` (serves uploads, supports Range)
+`GET /api/inbox` (summary) · `GET /api/inbox/{activity,followers,system,unread}` · `POST /api/inbox/seen`
+`GET|POST /api/messages/:username` · `GET /api/friends` · `POST /api/events/watch`
+`GET /api/videos?feed=foryou&exclude=…&limit=…&debug=1` returns the personalised ranking (with `debug=1`, the score breakdown)
+
+## For You recommendations
+
+`src/lib/recommend.ts` ranks the For You feed for each viewer, logged in or not (logged-out visitors get an anonymous cookie id).
+
+- **Signals:** likes (+3), saves (+4) and comments (+2), plus watch behaviour reported by the player. Finishing a video counts +2, each rewatch adds +0.75 (up to 3), watching most of it +0.6 to +1.2, and swiping away within ~2 s counts −1.5. Signals fade with a 7-day half-life.
+- **Interest profile:** those signals are spread across each video's hashtags, creator and sound. Following a creator adds to that creator's score.
+- **Collaborative filtering:** viewers who liked or finished the same videos as you count as "similar". What they liked or finished gets boosted for you.
+- **General quality:** popularity, the share of views watched to the end (smoothed), and freshness. This carries brand-new viewers and fades out as their own history grows.
+- **Seen penalties, diversity and exploration:** videos you've finished, skipped or liked sink. The same creator never plays twice in a row. About 15% of slots go to unseen videos outside your usual taste, so the profile can discover new interests.
+- The feed loads in batches of 6, each ranked *after* the videos you just watched, so it adapts as you scroll. When everything has been seen it starts another lap.
+- **Why this video:** the share sheet shows the reasons behind each pick.
+
+`npm test` runs the recommender tests against a throwaway copy of the database.
 
 ## Notes
 
 - **Uploads** are written to `public/uploads/` and served through `/api/media/...`, because `next start` only serves files that were in `public/` at build time. A thumbnail is captured from the preview in the browser.
 - **Counts:** seeded videos have `baseLikes`/`baseSaves` so they show realistic numbers (e.g. 12K). Real `Like`/`Save` rows add on top.
 - **Autoplay:** videos start muted because browsers block unmuted autoplay. The mute toggle is global and remembered in `localStorage`.
-- **Comments** refresh every 4 s while the drawer is open, so other users' new comments appear without a reload.
+- **Comments** refresh every 4 s while the drawer is open, chats every 3 s, and the Inbox badge every 15 s.
+- **Upgrading an existing database:** run `npm run setup` again (schema push + reseed).
 - **Auth secret:** set `AUTH_SECRET` in `.env.local` for anything beyond local use. Session cookies are `Secure` in production; set `INSECURE_COOKIES=1` to test `next start` over plain http.

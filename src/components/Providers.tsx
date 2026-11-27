@@ -5,7 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { CheckCircle2, AlertCircle } from "lucide-react";
 import type { SessionUser } from "@/lib/auth";
 
-type AuthCtx = { user: SessionUser | null; setUser: (u: SessionUser | null) => void; requireAuth: () => boolean };
+type Unread = { followers: number; activity: number; system: number; messages: number; total: number };
+type AuthCtx = { user: SessionUser | null; setUser: (u: SessionUser | null) => void; requireAuth: () => boolean; unread: Unread; refreshUnread: () => void };
 type MuteCtx = { muted: boolean; setMuted: (m: boolean) => void };
 type ToastCtx = { toast: (message: string, kind?: "success" | "error") => void };
 
@@ -24,6 +25,18 @@ export function Providers({ initialUser, children }: { initialUser: SessionUser 
   const pathname = usePathname();
   const [user, setUser] = useState(initialUser);
   useEffect(() => setUser(initialUser), [initialUser]);
+
+  const [unread, setUnread] = useState<Unread>({ followers: 0, activity: 0, system: 0, messages: 0, total: 0 });
+  const refreshUnread = useCallback(() => {
+    fetch("/api/inbox/unread").then((r) => r.json()).then(setUnread).catch(() => {});
+  }, []);
+  // Badge on the Inbox tab: refresh on navigation and every 15 s.
+  useEffect(() => {
+    if (!user) return setUnread({ followers: 0, activity: 0, system: 0, messages: 0, total: 0 });
+    refreshUnread();
+    const t = setInterval(refreshUnread, 15000);
+    return () => clearInterval(t);
+  }, [user, pathname, refreshUnread]);
 
   const requireAuth = useCallback(() => {
     if (user) return true;
@@ -53,7 +66,7 @@ export function Providers({ initialUser, children }: { initialUser: SessionUser 
   }, []);
 
   return (
-    <Auth.Provider value={{ user, setUser, requireAuth }}>
+    <Auth.Provider value={{ user, setUser, requireAuth, unread, refreshUnread }}>
       <Mute.Provider value={{ muted, setMuted }}>
         <Toast.Provider value={{ toast }}>
           {children}

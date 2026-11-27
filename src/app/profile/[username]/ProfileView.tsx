@@ -80,9 +80,14 @@ export function ProfileView({ initialProfile, initialPosted }: { initialProfile:
           {profile.isMe ? (
             <button onClick={() => setEditing(true)} className="h-10 rounded-md bg-neutral-800 px-8 text-sm font-semibold hover:bg-neutral-700">Edit profile</button>
           ) : (
-            <button onClick={toggleFollow} disabled={busy} className={`h-10 w-40 rounded-md text-sm font-semibold transition-colors ${profile.followedByMe ? "bg-neutral-800 hover:bg-neutral-700" : "bg-brand hover:bg-brand/90"}`}>
-              {profile.followedByMe ? "Following" : "Follow"}
-            </button>
+            <>
+              <button onClick={toggleFollow} disabled={busy} className={`h-10 w-36 rounded-md text-sm font-semibold transition-colors ${profile.followedByMe ? "bg-neutral-800 hover:bg-neutral-700" : "bg-brand hover:bg-brand/90"}`}>
+                {profile.followedByMe ? "Following" : "Follow"}
+              </button>
+              <button onClick={() => requireAuth() && router.push(`/inbox/chat/${profile.username}`)} className="h-10 rounded-md bg-neutral-800 px-5 text-sm font-semibold hover:bg-neutral-700">
+                Message
+              </button>
+            </>
           )}
         </div>
         {profile.bio && <p className="mt-4 max-w-xs whitespace-pre-line text-sm">{profile.bio}</p>}

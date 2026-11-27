@@ -7,15 +7,22 @@ import { useAuth } from "./Providers";
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, unread } = useAuth();
   const profileHref = user ? `/profile/${user.username}` : "/login?next=/profile";
   const isActive = (href: string) => (href === "/" ? pathname === "/" || pathname.startsWith("/watch") : pathname.startsWith(href));
 
-  const item = (href: string, label: string, Icon: typeof Home, match = href) => {
+  const item = (href: string, label: string, Icon: typeof Home, match = href, badge = 0) => {
     const active = isActive(match);
     return (
-      <Link href={href} className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium ${active ? "text-white" : "text-white/55"}`} aria-current={active ? "page" : undefined}>
-        <Icon className="h-6 w-6" strokeWidth={active ? 2.6 : 2} fill={active && label === "Home" ? "currentColor" : "none"} />
+      <Link href={href} className={`flex flex-1 flex-col items-center justify-center gap-0.5 text-[10px] font-medium ${active ? "text-white" : "text-white/55"}`} aria-current={active ? "page" : undefined} aria-label={badge ? `${label}, ${badge} unread` : undefined}>
+        <span className="relative">
+          <Icon className="h-6 w-6" strokeWidth={active ? 2.6 : 2} fill={active && label === "Home" ? "currentColor" : "none"} />
+          {badge > 0 && (
+            <span className="absolute -right-2.5 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold leading-none text-white ring-2 ring-black">
+              {badge > 99 ? "99+" : badge}
+            </span>
+          )}
+        </span>
         {label}
       </Link>
     );
@@ -34,7 +41,7 @@ export function BottomNav() {
           </span>
         </span>
       </Link>
-      {item("/inbox", "Inbox", MessageSquareText)}
+      {item("/inbox", "Inbox", MessageSquareText, "/inbox", unread.total)}
       {item(profileHref, "Profile", User, "/profile")}
     </nav>
   );

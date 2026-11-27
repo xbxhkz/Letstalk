@@ -48,3 +48,10 @@ export async function getSessionUser() {
 }
 
 export type SessionUser = NonNullable<Awaited<ReturnType<typeof getSessionUser>>>;
+
+/** Who is watching: the logged-in user (if any) plus the anonymous browser id. */
+export async function getViewer() {
+  const [userId, jar] = await Promise.all([getSessionUserId(), cookies()]);
+  const anon = jar.get("lt_anon")?.value;
+  return { userId, viewerKey: anon ? `anon:${anon}` : null };
+}

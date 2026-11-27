@@ -50,3 +50,10 @@ export async function videoDTOById(id: string, viewerId: string | null) {
   const v = await prisma.video.findUnique({ where: { id }, include: videoInclude(viewerId) });
   return v ? toVideoDTO(v, viewerId) : null;
 }
+
+export async function videosByIdsInOrder(ids: string[], viewerId: string | null) {
+  if (!ids.length) return [];
+  const rows = await prisma.video.findMany({ where: { id: { in: ids } }, include: videoInclude(viewerId) });
+  const map = new Map(rows.map((r) => [r.id, toVideoDTO(r, viewerId)]));
+  return ids.map((id) => map.get(id)).filter((v): v is VideoDTO => !!v);
+}

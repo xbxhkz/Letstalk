@@ -16,7 +16,7 @@ export default async function WatchPage({ searchParams }: { searchParams: Promis
   return (
     <div className="relative h-full">
       <TopBar back />
-      <Feed query={q.toString()} initialId={sp.v} />
+      <Feed query={q.toString()} initialId={sp.v} paginate={q.get("feed") === "foryou" && !q.has("q") && !q.has("tag")} />
     </div>
   );
 }
