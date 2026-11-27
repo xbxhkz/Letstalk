@@ -13,7 +13,11 @@ model User {
   displayName  String
   bio          String        @default("")
   avatarUrl    String?
-  passwordHash String
+  passwordHash String?       // null for accounts that only use Google / email code / phone code
+  email        String?       @unique // lowercase, verified
+  phone        String?       @unique // E.164, verified
+  googleId     String?       @unique // Google's stable "sub" claim
+  needsUsername Boolean      @default(false) // new code/Google accounts pick a handle on first sign-in
   createdAt    DateTime      @default(now())
   videos       Video[]
   likes        Like[]
@@ -152,4 +156,35 @@ model CommentLike {
   comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
   @@id([userId, commentId])
+}
+
+/// One-time sign-in code sent by email or SMS. Only a hash of the code is stored.
+model OtpCode {
+  id         String    @id @default(cuid())
+  channel    String    // "email" | "sms"
+  target     String    // normalised email or E.164 phone
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+  ip         String?
+
+  @@index([channel, target, createdAt])
+}
+
+/// In-flight Google sign-in. `state` is sent to Google; `bindingHash` ties the result to the
+/// browser (or app WebView) that started it, via the lt_oauth cookie.
+model OAuthState {
+  state        String    @id
+  codeVerifier String    // PKCE
+  nonce        String
+  bindingHash  String
+  next         String    @default("/")
+  app          Boolean   @default(false) // started inside the Android app
+  handoffHash  String?   // app flow: one-time token the app exchanges for a session
+  userId       String?
+  expiresAt    DateTime
+  consumedAt   DateTime?
+  createdAt    DateTime  @default(now())
 }

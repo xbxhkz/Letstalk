@@ -17,3 +17,4 @@ dist/
 android/keystore.properties
 *.jks
 *.keystore
+.next-e2e

@@ -11,7 +11,7 @@
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "setup": "prisma db push && prisma db seed",
-    "test": "cp prisma/dev.db prisma/test.db && DATABASE_URL=file:./test.db tsx --test tests/*.test.ts; s=$?; rm -f prisma/test.db; exit $s",
+    "test": "node scripts/test.mjs",
     "start:lan": "node scripts/start-lan.mjs",
     "android:apk": "node scripts/android-build.mjs",
     "android:open": "npx cap open android"
@@ -27,12 +27,14 @@
     "jose": "^6.1.0",
     "lucide-react": "^0.544.0",
     "next": "^15.5.4",
+    "nodemailer": "10.6.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
     "@capacitor/cli": "8.6.3",
     "@types/node": "^22.20.7",
+    "@types/nodemailer": "8.0.2",
     "@types/react": "^19.3.3",
     "@types/react-dom": "^19.3.0",
     "autoprefixer": "^10.4.21",

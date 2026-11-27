@@ -18,6 +18,14 @@ MVP complete. All required features are built. `npm run build` passes with 0 err
 - **Server for phones:** `npm run build && npm run start:lan` (listens on 0.0.0.0 with `INSECURE_COOKIES=1`).
 - **Verified on the `Oneplus_13` emulator:** the start screen pre-filled the LAN address, Connect loaded the For You feed with autoplay, demo login held its session over http, the inbox showed its badges and messages, and relaunching reconnected and stayed logged in.
 - **Gotchas:** `scripts/android-build.mjs` calls `.\gradlew.bat` explicitly (this machine sets NoDefaultCurrentDirectoryInExePath). Other tools on this PC run an older adb (v32), which keeps restarting the SDK's adb (v41), so retry adb commands. `npm test` uses `cp`/`rm`, so run it from Git Bash on Windows.
+## Sign-in methods (2026-11-27, branch feature/sign-in-methods)
+- **Methods:** Google, phone (SMS code), email (code), plus the existing username/password. Code lives in `src/lib/{otp,delivery,identity,google,auth-flow}.ts` and `src/app/api/auth/{otp,google,handoff,username}`. The login UI is `src/app/login/LoginForm.tsx`; new accounts go through `/onboarding`.
+- **Schema:** `User.email/phone/googleId/needsUsername`, `passwordHash` now nullable, new `OtpCode` and `OAuthState`. Run `npm run db:push`.
+- **Providers:** none configured yet. In dev, codes appear on screen and in the console. To go live, fill `.env.local` from `.env.example` (Twilio, SMTP, Google OAuth client).
+- **Android:** user agent `LetstalkApp`; an intent filter for `com.letstalk.app://auth`; `MainActivity.onNewIntent` passes the token to the start screen (`?handoff=`), which loads `/api/auth/handoff`.
+- **Verified:** `npm test` 14/14; `node tests/e2e-auth.mjs` 24/24 against a fake Google (PKCE, RS256 ID token, nonce, CSRF, linking, unverified email, app hand-off, token replay); a browser run of phone code → onboarding → taken-name check → redirect back; on the emulator, an app link with a fake token went through the whole chain in-app and was rejected as expected.
+- **Bugs found and fixed while testing:** redirects built from `req.url` said `http://0.0.0.0:3000` under `start:lan`, so the app bounced to Chrome and the Google `redirect_uri` would have been wrong. Same-site redirects are now relative (`localRedirect`) and origins come from `PUBLIC_URL` or the Host header (`requestOrigin`). Also, the e2e `next dev` overwrote the production `.next` build, so it now uses `NEXT_DIST_DIR=.next-e2e`.
+- **Not done:** linking or unlinking sign-in methods from settings (e.g. adding a phone to a Google account), and a real Google/Twilio/SMTP run, which needs credentials.
 ## Where the code is
 - PR #1 (the MVP) was merged into `main` on 2026-11-27.
 - PR #2 (inbox, For You recommendations and the Android app) was merged into `main` on 2026-11-27 (https://github.com/xbxhkz/Letstalk/pull/2).
@@ -43,6 +51,7 @@ MVP complete. All required features are built. `npm run build` passes with 0 err
 
 ## Possible next steps
 - Android: release signing + Play Store bundle (AAB); push notifications for inbox activity
+- Settings page to add or remove sign-in methods on an existing account
 - Avatar upload in Edit Profile
 - Real-time updates over SSE/WebSocket instead of polling (comments 4 s, chat 3 s, badge 15 s)
 - Replies to comments; typing indicators and message reactions in chat
