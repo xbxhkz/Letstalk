@@ -5,6 +5,10 @@ _Last updated: 2026-11-27_
 ## Status
 MVP complete. All required features are built. `npm run build` passes with 0 errors and 0 warnings. Every page and API route returned 200 (201/206 where that's correct) on the dev server. A Playwright run covered autoplay, snap-scroll, tap-to-pause, double-tap like, share, posting a comment, the Following tab, profile → liked grid → watch, search, and upload, with zero console errors.
 
+## Where the code is
+- Branch `ccr-0dd9e9b7-i705se`, draft PR #1 → `main` (https://github.com/xbxhkz/Letstalk/pull/1)
+- `main` holds only an empty "Initial commit". It was created so the PR has a base to merge into.
+
 ## Run it
 `npm install && npm run setup && npm run dev`. Demo login: any seed user and `password123`.
 
