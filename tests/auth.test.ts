@@ -90,3 +90,11 @@ test("generated usernames are valid and unique", async () => {
   assert.notEqual(u, taken);
   assert.match(await generateUsername("Zoë O'Brien!!"), /^[a-z0-9._]{3,24}$/);
 });
+
+test("post-login destinations can't leave the site", async () => {
+  const { safeNext } = await import("../src/lib/auth-flow");
+  for (const bad of ["//evil.com", "/\\evil.com", "/\t/evil.com", "/\n/evil.com", "/\r\n/evil.com", "https://evil.com", "javascript:alert(1)", "evil.com", "/\\/evil.com", ""])
+    assert.equal(safeNext(bad), "/", JSON.stringify(bad));
+  assert.equal(safeNext("/discover?q=%23dance#top"), "/discover?q=%23dance#top");
+  assert.equal(safeNext("/profile/maya.moves"), "/profile/maya.moves");
+});

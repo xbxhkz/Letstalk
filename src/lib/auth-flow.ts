@@ -17,8 +17,16 @@ export function requestOrigin(req: Request): string {
 
 /** Only same-site paths are allowed as post-login destinations (no open redirects). */
 export function safeNext(raw: string | null | undefined): string {
-  const v = String(raw ?? "");
-  return v.startsWith("/") && !v.startsWith("//") && !v.startsWith("/\\") ? v : "/";
+  // Browsers drop tabs/newlines and treat "\" like "/" in URLs, so "/\t/evil.com" would become "//evil.com".
+  const v = String(raw ?? "").replace(/[\u0000-\u001F\u007F]/g, "");
+  if (!v.startsWith("/") || v.startsWith("//") || v.startsWith("/\\")) return "/";
+  try {
+    const base = "http://same-site.invalid";
+    const u = new URL(v, base);
+    return u.origin === base ? u.pathname + u.search + u.hash : "/";
+  } catch {
+    return "/";
+  }
 }
 
 /** The Android app appends "LetstalkApp" to its WebView user agent (see capacitor.config.ts). */

@@ -78,6 +78,8 @@ New Google, phone and email accounts pick a username on `/onboarding` before usi
 
 **Google on Android:** Google blocks sign-in inside app WebViews, so the app opens Google in the system browser. When it finishes, the browser returns to the app via `com.letstalk.app://auth?token=…`, and the app trades that one-time token for a session. The token only works together with a cookie that exists solely in the app's WebView. Google accepts only `localhost` or public **https** redirect addresses, so on phones Google sign-in needs the server on a public https domain with `PUBLIC_URL` set (phone and email codes work on the LAN).
 
+**Known limitation (Android Google sign-in):** the return link uses a custom scheme, which any app can also register. A malicious app on a victim's phone, combined with a sign-in an attacker started and tricked the victim into completing, could relay the token to the attacker. The proper fix is Android App Links (a verified `https://<PUBLIC_URL>/...` return link backed by `/.well-known/assetlinks.json`), which needs the public domain. Do this before relying on Google sign-in in the app. Browsers aren't affected: there the callback must come from the browser that started sign-in.
+
 **Tests:** `npm test` (unit tests) and `node tests/e2e-auth.mjs`, which runs every sign-in flow against a local fake Google server, including the forged-callback, account-linking and app hand-off cases.
 ## Android app
 
