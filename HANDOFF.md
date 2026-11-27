@@ -11,11 +11,13 @@ MVP complete. All required features are built. `npm run build` passes with 0 err
 - **Verified:** `npm run build` is clean and `npm test` passes 5/5 (recommender behaviour). A two-user Playwright run checked watch events, batch loading, the share sheet and Why this video, sending a video by DM, chat in both directions with Seen receipts, the unread badges and the Activity filters, with zero console errors.
 - **New schema:** `View`, `Message`, `Notice`, and `User.activitySeenAt` / `User.followersSeenAt`. Run `npm run setup` to apply.
 
-## Pending: Android APK (not started)
-- Not built in the cloud session: its network policy blocks `dl.google.com` / `maven.google.com` (Android SDK and Android Gradle plugin). It will be built locally with Android Studio.
-- Architecture to keep in mind: Letstalk is a Next.js **server** (API routes plus SQLite), so the APK can't bundle it. The APK must be a WebView/Capacitor shell that loads a running server's URL, either a deployed host or `http://<your-LAN-IP>:3000` from `npm run dev -- -H 0.0.0.0`. Plain http also needs Android cleartext traffic allowed, and session cookies are `Secure` under `next start` unless `INSECURE_COOKIES=1`.
-- Suggested route: `npm i @capacitor/core @capacitor/cli @capacitor/android`, `npx cap init Letstalk com.letstalk.app`, set `server.url` in `capacitor.config.ts`, then `npx cap add android` and `npx cap open android` → Build → Build APK(s).
-
+## Android APK (2026-11-27)
+- Built on Windows with Android Studio's JDK 21 and SDK 36: `npm run android:apk` produces `dist/Letstalk-debug.apk` (~4 MB, minSdk 24, targetSdk 36, `com.letstalk.app`).
+- **Design:** a Capacitor 8.6.3 shell. `android-shell/index.html` is a start screen that asks for the server URL, stores it, checks it's reachable, and then loads it in the WebView. `capacitor.config.ts` uses `allowNavigation: ["*"]` (keeps any server in-app), cleartext, mixed content and dark `SystemBars`.
+- **Hand edits in `android/`** (generated once, then committed; keep them if you regenerate): `usesCleartextTraffic="true"` in AndroidManifest.xml, black window and system-bar colours in `res/values/styles.xml`, and the icons and splash written by `scripts/make-icons.mjs`.
+- **Server for phones:** `npm run build && npm run start:lan` (listens on 0.0.0.0 with `INSECURE_COOKIES=1`).
+- **Verified on the `Oneplus_13` emulator:** the start screen pre-filled the LAN address, Connect loaded the For You feed with autoplay, demo login held its session over http, the inbox showed its badges and messages, and relaunching reconnected and stayed logged in.
+- **Gotchas:** `scripts/android-build.mjs` calls `.\gradlew.bat` explicitly (this machine sets NoDefaultCurrentDirectoryInExePath). Other tools on this PC run an older adb (v32), which keeps restarting the SDK's adb (v41), so retry adb commands. `npm test` uses `cp`/`rm`, so run it from Git Bash on Windows.
 ## Where the code is
 - PR #1 (the MVP) was merged into `main` on 2026-11-27.
 - The inbox and recommendation work is on `ccr-0dd9e9b7-i705se` in PR #2 (https://github.com/xbxhkz/Letstalk/pull/2), not merged yet.
@@ -39,6 +41,7 @@ MVP complete. All required features are built. `npm run build` passes with 0 err
 - `baseLikes`/`baseSaves` columns give seed videos realistic counts with only 4 real users.
 
 ## Possible next steps
+- Android: release signing + Play Store bundle (AAB); push notifications for inbox activity
 - Avatar upload in Edit Profile
 - Real-time updates over SSE/WebSocket instead of polling (comments 4 s, chat 3 s, badge 15 s)
 - Replies to comments; typing indicators and message reactions in chat

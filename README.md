@@ -59,6 +59,30 @@ Run `npm run db:seed` at any time to reset the data.
 
 `npm test` runs the recommender tests against a throwaway copy of the database.
 
+## Android app
+
+The APK is a Capacitor shell, not a copy of the app. Letstalk runs as a server (API routes plus SQLite), so the Android app opens on a small start screen (`android-shell/`), asks for the server address, remembers it, and then loads that server in a WebView.
+
+**Build the APK** (needs Android Studio, or at least its JDK and the Android SDK):
+
+```bash
+npm run android:apk      # -> dist/Letstalk-debug.apk
+```
+
+The script finds Android Studio's bundled JDK and the SDK in their default locations if `JAVA_HOME` and `ANDROID_HOME` aren't set. It pre-fills the start screen with this computer's LAN address (override with `LETSTALK_SERVER_URL=http://host:port`). `npm run android:open` opens the project in Android Studio.
+
+**Run a server your phone can reach:**
+
+```bash
+npm run build
+npm run start:lan        # prints http://<your-LAN-IP>:3000
+```
+
+`start:lan` listens on all interfaces and sets `INSECURE_COOKIES=1`, so login works over plain http. Allow Node through Windows Firewall on private networks if the phone can't connect.
+
+**Install on a phone:** copy the APK over (or `adb install dist/Letstalk-debug.apk`), allow "Install unknown apps" for the app you open it with, then tap Connect on the start screen. To switch servers, reopen the app and tap "Change server" while it's connecting.
+
+Debug APKs are signed with Android's debug key: fine for sideloading, not for the Play Store. A release build (`node scripts/android-build.mjs --release`) needs a signing key configured in `android/app/build.gradle`.
 ## Notes
 
 - **Uploads** are written to `public/uploads/` and served through `/api/media/...`, because `next start` only serves files that were in `public/` at build time. A thumbnail is captured from the preview in the browser.
